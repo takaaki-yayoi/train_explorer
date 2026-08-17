@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2c3a47">
+<title>分身の旅日記</title>
+<meta name="description" content="分身が日本の実在の鉄道路線を旅し、途中下車した駅や車窓の風景に感想を残す旅日記。">
+<meta property="og:title" content="分身の旅日記">
+<meta property="og:description" content="分身が日本の鉄道を旅する、毎朝の新聞連載。">
+<meta property="og:type" content="article">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="app">
+  <div id="map"></div>
+  <div id="panel">
+    <header>
+      <div class="titlerow">
+        <h1 id="title">分身の旅日記</h1>
+        <span class="headbtns">
+          <button id="pickBtn" class="icon hidden" title="路線を選んで旅する">🚃</button>
+          <button id="archiveBtn" class="icon" title="ほかの便">📚</button>
+        </span>
+      </div>
+      <div class="sub" id="sub"></div>
+    </header>
+    <div id="controls">
+      <button id="playBtn">▶ 旅を再生</button>
+      <button id="allBtn" class="secondary">全部読む</button>
+      <button id="shareBtn" class="secondary icon" title="共有">🔗</button>
+    </div>
+    <div id="diary"></div>
+    <div id="fin"></div>
+    <footer id="credit"></footer>
+  </div>
+</div>
+
+<!-- ほかの便 (アーカイブ) のシート -->
+<div id="archiveSheet" class="hidden">
+  <div class="sheet-inner">
+    <div class="sheet-head"><span>連載一覧</span><button id="archiveClose" class="icon">✕</button></div>
+    <ul id="archiveList"></ul>
+  </div>
+</div>
+
+<!-- 路線ピッカー -->
+<div id="pickSheet" class="hidden">
+  <div class="sheet-inner">
+    <div class="sheet-head"><span>路線を選んで旅する</span><button id="pickClose" class="icon">✕</button></div>
+    <div class="pick-search"><input id="pickInput" type="search" placeholder="路線名・事業者で絞り込み (例: 加太, 南海)" autocomplete="off"></div>
+    <ul id="pickList"></ul>
+    <div class="pick-note">選ぶと分身がその路線を巡って日記を書きます (1〜2分)。</div>
+  </div>
+</div>
+
+<!-- 生成中オーバーレイ -->
+<div id="genOverlay" class="hidden">
+  <div class="gen-box">
+    <div class="gen-emoji" id="genEmoji">🚃</div>
+    <div class="gen-line" id="genLine"></div>
+    <div class="gen-msg" id="genMsg">準備中…</div>
+    <div class="gen-steps" id="genSteps"></div>
+    <button id="genCancel" class="secondary">閉じる</button>
+  </div>
+</div>
+
+<div id="loading">読み込み中…</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

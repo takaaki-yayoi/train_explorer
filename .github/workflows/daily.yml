@@ -1,0 +1,43 @@
+# 夜間バッチ: 毎朝の便を自動生成してコミットする。
+# 静的ホスト (Cloudflare Pages / Netlify) を GitHub 連携しておけば、
+# このコミットの push で自動的に再ビルド・再デプロイされる。
+#
+# 事前準備:
+#   リポジトリの Settings → Secrets and variables → Actions に OPENAI_API_KEY を登録。
+name: daily-trip
+
+on:
+  schedule:
+    # 19:00 UTC = 04:00 JST。その日 (JST) の朝の便を用意する。
+    - cron: "0 19 * * *"
+  workflow_dispatch: {} # 手動実行も可
+
+permissions:
+  contents: write # trips/ をコミットして push するため
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 便を生成 (JST の当日分)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node scripts/generate-daily.js --date "$(TZ=Asia/Tokyo date +%F)"
+
+      - name: コミット & push
+        run: |
+          git config user.name "bunshin-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add trips cache
+          if git diff --cached --quiet; then
+            echo "変更なし (既に生成済み)。"
+          else
+            git commit -m "便: $(TZ=Asia/Tokyo date +%F)"
+            git push
+          fi

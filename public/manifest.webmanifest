@@ -1,0 +1,15 @@
+{
+  "name": "分身の旅日記",
+  "short_name": "旅日記",
+  "description": "分身が日本の実在の鉄道路線を旅する、毎朝の新聞連載。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f2f0",
+  "theme_color": "#2c3a47",
+  "lang": "ja",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

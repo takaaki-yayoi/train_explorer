@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分身の旅日記 第2便 - JR名松線</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Hiragino Sans", "Yu Gothic", sans-serif; display: flex; height: 100vh; overflow: hidden; background: #f6f3ee; }
+  #map { flex: 1; }
+  #panel { width: 400px; background: #f6f3ee; display: flex; flex-direction: column; border-left: 1px solid #ddd; }
+  header { padding: 16px 20px 12px; background: #4a6741; color: #fff; }
+  header h1 { font-size: 16px; }
+  header .sub { font-size: 12px; opacity: .85; margin-top: 4px; line-height: 1.5; }
+  #controls { display: flex; gap: 8px; padding: 10px 20px; background: #fff; border-bottom: 1px solid #e5e0d8; }
+  button { flex: 1; padding: 9px; border: none; border-radius: 6px; cursor: pointer; background: #4a6741; color: #fff; font-size: 13px; font-weight: bold; }
+  button:hover { background: #5c7f52; }
+  button.secondary { background: #c9c2b6; color: #443f38; }
+  #diary { flex: 1; overflow-y: auto; padding: 14px 20px 30px; }
+  .card { background: #fff; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); cursor: pointer; opacity: 0; transform: translateY(8px); transition: opacity .5s, transform .5s; }
+  .card.shown { opacity: 1; transform: none; }
+  .card.pass { background: #efece5; padding: 8px 14px; font-size: 12px; color: #6b6459; }
+  .card .meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .card .time { font-size: 11px; color: #999; }
+  .card .st { font-weight: bold; font-size: 15px; color: #4a6741; }
+  .card .st a { color: inherit; text-decoration: none; border-bottom: 1px dotted #4a6741; }
+  .card .st a:hover { background: #eef3ec; }
+  .card .tag { font-size: 10px; background: #e8a33d; color: #fff; border-radius: 3px; padding: 1px 5px; }
+  .card.pass .tag { background: #a5a095; }
+  .card p { font-size: 13px; line-height: 1.7; color: #3a362f; }
+  .card p a { color: #4a6741; text-decoration: none; border-bottom: 1px dotted #4a6741; }
+  .card p a:hover { background: #eef3ec; }
+  .card.pass p { font-size: 12px; }
+  .card.active { outline: 2px solid #e8a33d; }
+  #fin { text-align: center; font-size: 12px; color: #999; padding: 10px 0 20px; display: none; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="panel">
+  <header>
+    <h1>🎒 分身タカの旅日記 - 第2便</h1>
+    <div class="sub">JR名松線 (JR東海) 松阪 → 伊勢奥津 43.5km<br>2026年7月12日 (日) 晴れ / のんびり屋、食べ物と古い街並みに弱い</div>
+  </header>
+  <div id="controls">
+    <button id="playBtn">▶ 旅を再生</button>
+    <button id="allBtn" class="secondary">全部読む</button>
+  </div>
+  <div id="diary"></div>
+  <div id="fin">— 第2便はここまで。分身は次の旅を探しています —</div>
+</div>
+<script>
+const lineInfo = { name: "JR名松線", from: "松阪", to: "伊勢奥津" };
+const stations = [
+  {name:"松阪",lat:34.577053,lon:136.535801},
+  {name:"上ノ庄",lat:34.597996,lon:136.499273},
+  {name:"権現前",lat:34.617691,lon:136.482202},
+  {name:"伊勢八太",lat:34.647523,lon:136.446916},
+  {name:"一志",lat:34.654894,lon:136.436067},
+  {name:"井関",lat:34.642493,lon:136.412653},
+  {name:"伊勢大井",lat:34.650013,lon:136.385179},
+  {name:"伊勢川口",lat:34.64767,lon:136.356849},
+  {name:"関ノ宮",lat:34.637693,lon:136.339721},
+  {name:"家城",lat:34.625791,lon:136.319246},
+  {name:"伊勢竹原",lat:34.599785,lon:136.309081},
+  {name:"伊勢鎌倉",lat:34.574023,lon:136.278349},
+  {name:"伊勢八知",lat:34.555355,lon:136.263952},
+  {name:"比津",lat:34.531967,lon:136.270716},
+  {name:"伊勢奥津",lat:34.512155,lon:136.260031},
+];
+
+// OpenStreetMapから取得した名松線の実線形 (松阪→伊勢奥津、約42.6km)
+const track = [
+[34.577053,136.535801],[34.580118,136.532193],[34.583872,136.527404],[34.584502,136.526691],[34.585487,136.525868],[34.58766,136.52449],[34.588182,136.524098],[34.588841,136.523417],[34.589407,136.522642],[34.589836,136.521815],[34.593035,136.514261],[34.593505,136.512732],[34.595709,136.503972],[34.5961,136.502823],[34.596421,136.502097],[34.598385,136.498569],[34.599307,136.497121],[34.604796,136.4898],[34.606111,136.488216],[34.60674,136.487711],[34.60762,136.487119],[34.62225,136.479965],[34.622761,136.479633],[34.623117,136.479319],[34.623828,136.478486],[34.632801,136.467617],[34.633453,136.466999],[34.634055,136.46654],[34.634577,136.466239],[34.636118,136.465583],[34.636618,136.465315],[34.637124,136.464835],[34.637376,136.464489],[34.637625,136.464023],[34.642042,136.454022],[34.642528,136.453103],[34.643177,136.452052],[34.643585,136.451486],[34.653635,136.439674],[34.654036,136.439095],[34.654403,136.438328],[34.654637,136.43761],[34.654795,136.436913],[34.654893,136.436106],[34.654906,136.435243],[34.654801,136.434245],[34.654659,136.433607],[34.654296,136.432548],[34.651229,136.42617],[34.65071,136.425254],[34.650162,136.424552],[34.649875,136.424263],[34.647175,136.421793],[34.646711,136.421213],[34.646279,136.420506],[34.640943,136.409165],[34.640774,136.408744],[34.640626,136.407943],[34.640623,136.407223],[34.640798,136.406184],[34.641932,136.403452],[34.642451,136.402362],[34.642584,136.401898],[34.642673,136.401361],[34.642698,136.400537],[34.64247,136.398358],[34.642465,136.3975],[34.642578,136.396733],[34.642873,136.395835],[34.643183,136.395245],[34.650829,136.384039],[34.651362,136.382929],[34.65172,136.381599],[34.652347,136.3758],[34.652309,136.374957],[34.652183,136.374384],[34.65198,136.373834],[34.65136,136.372789],[34.651145,136.372253],[34.650975,136.371577],[34.650157,136.36525],
+[34.649978,136.364108],[34.64965,136.362583],[34.64919,136.360971],[34.648776,136.35978],[34.64716,136.355452],[34.64475,136.348683],[34.643721,136.34606],[34.643384,136.345354],[34.642332,136.343797],[34.641954,136.343296],[34.641326,136.342594],[34.64032,136.34166],[34.633857,136.336798],[34.632948,136.336254],[34.631914,136.335834],[34.63122,136.33545],[34.628674,136.333339],[34.628216,136.332844],[34.627888,136.332381],[34.627594,136.331833],[34.627334,136.331137],[34.627189,136.330549],[34.627093,136.32979],[34.62721,136.323382],[34.627087,136.322353],[34.626883,136.321608],[34.624077,136.315208],[34.623814,136.314728],[34.623448,136.314274],[34.623067,136.313927],[34.622647,136.313652],[34.622034,136.313406],[34.62175,136.313348],[34.621257,136.313322],[34.6209,136.31336],[34.620114,136.313625],[34.619769,136.313841],[34.619271,136.314278],[34.618876,136.31478],[34.618699,136.315095],
+[34.618419,136.315761],[34.618061,136.317379],[34.61773,136.318072],[34.61739,136.318439],[34.616935,136.318717],[34.616396,136.31883],[34.616118,136.318812],[34.615729,136.318687],[34.615457,136.318523],[34.615211,136.318317],[34.614513,136.317467],[34.614293,136.317284],[34.614064,136.317155],[34.613096,136.316795],[34.612587,136.316472],[34.609512,136.313429],[34.608921,136.312953],[34.60576,136.311974],[34.604923,136.311667],[34.597532,136.307894],[34.597101,136.307732],[34.596694,136.307668],[34.594975,136.307563],[34.594397,136.307403],[34.593962,136.307158],[34.593544,136.306797],[34.593263,136.306472],[34.592863,136.305833],[34.592686,136.30543],[34.59255,136.305068],[34.591213,136.299993],[34.59096,136.29947],[34.587628,136.295455],[34.586819,136.294815],[34.586546,136.294493],[34.586332,136.294141],[34.586174,136.293687],[34.586097,136.293119],[34.586123,136.292303],[34.586072,136.291426],
+[34.585939,136.290918],[34.585673,136.290294],[34.585329,136.289796],[34.584898,136.28937],[34.584347,136.289039],[34.58349,136.288777],[34.582948,136.288537],[34.582336,136.288103],[34.581791,136.287519],[34.579115,136.283234],[34.578988,136.282798],[34.578783,136.281303],[34.578676,136.280927],[34.578273,136.280337],[34.577971,136.280045],[34.577695,136.279877],[34.575706,136.279314],[34.57494,136.278999],[34.57426,136.27853],[34.573173,136.277451],[34.572618,136.277084],[34.572099,136.276912],[34.571614,136.276866],[34.571314,136.276891],[34.568778,136.277537],[34.568323,136.277565],[34.567774,136.277446],[34.566586,136.276778],[34.565847,136.276564],[34.565342,136.27627],[34.564871,136.275671],[34.564749,136.275409],[34.564399,136.274259],[34.564114,136.273727],[34.563028,136.272499],[34.562625,136.271872],[34.561761,136.269659],[34.56111,136.268611],[34.560892,136.268351],[34.560384,136.267924],
+[34.560091,136.26776],[34.558737,136.26726],[34.558226,136.26697],[34.557758,136.266488],[34.556954,136.265378],[34.556495,136.264886],[34.555421,136.264027],[34.55375,136.262822],[34.553274,136.262606],[34.552874,136.262526],[34.552354,136.262563],[34.551839,136.262735],[34.551295,136.263128],[34.550879,136.263663],[34.550614,136.264252],[34.550518,136.264644],[34.550436,136.265871],[34.550358,136.266308],[34.550109,136.266836],[34.549793,136.267181],[34.549339,136.267415],[34.548891,136.267465],[34.546564,136.266793],[34.546002,136.266767],[34.545599,136.266936],[34.545294,136.267178],[34.545021,136.267574],[34.544808,136.268036],[34.544564,136.268363],[34.54403,136.268863],[34.543618,136.269091],[34.543099,136.269125],[34.542603,136.268939],[34.540627,136.26731],[34.540003,136.266919],[34.539337,136.266737],[34.537578,136.266628],[34.537186,136.266714],[34.536789,136.266888],[34.536188,136.267266],
+[34.535755,136.267642],[34.535357,136.268126],[34.535078,136.268565],[34.534494,136.269868],[34.534263,136.270274],[34.53394,136.270617],[34.533524,136.270881],[34.532967,136.271006],[34.532407,136.270918],[34.530333,136.269697],[34.530008,136.269589],[34.52963,136.26958],[34.528952,136.269727],[34.528594,136.269866],[34.52823,136.270138],[34.527518,136.270884],[34.527085,136.271131],[34.526451,136.271235],[34.52545,136.271195],[34.525117,136.271241],[34.52466,136.271472],[34.524208,136.271921],[34.523712,136.272272],[34.523304,136.272394],[34.521886,136.272676],[34.521481,136.272692],[34.521242,136.272645],[34.520772,136.272426],[34.520531,136.272235],[34.520209,136.271833],[34.520049,136.271541],[34.519794,136.270726],[34.519504,136.270144],[34.519115,136.269731],[34.518816,136.26954],[34.518545,136.269437],[34.518147,136.269385],[34.517874,136.269408],[34.511745,136.270581],[34.511373,136.270584],
+[34.511106,136.270527],[34.510579,136.270257],[34.510111,136.269746],[34.50982,136.26907],[34.50974,136.2686],[34.509743,136.26824],[34.509837,136.2677],[34.51004,136.267205],[34.512413,136.263356],[34.512693,136.262669],[34.512767,136.262207],[34.512714,136.261537],[34.512031,136.259587]
+];
+
+// ===== 旅日記 =====
+// リンク: wp() = Wikipedia日本語版 / gs() = Google検索
+const wp = (term, label) => '<a href="https://ja.wikipedia.org/wiki/' + encodeURIComponent(term) + '" target="_blank" rel="noopener">' + (label || term) + '</a>';
+const gs = (query, label) => '<a href="https://www.google.com/search?q=' + encodeURIComponent(query) + '" target="_blank" rel="noopener">' + label + '</a>';
+const diary = [
+{t:"09:12",st:0,type:"stop",text:"三重県の" + wp("松阪市","松阪") + "から、今日は" + wp("名松線") + "に乗る。「名張と松阪を結ぶから名松線」のはずが、線路はついに名張へ届かなかった。名前にだけ約束が残っている路線だ。駅の売店で名物の" + gs("モー太郎弁当 あら竹","モー太郎弁当") + " (蓋が牛の顔で、開けるとメロディが流れる) を確保。1両きりのディーゼルカーが、こちらの覚悟を試すようにアイドリングしている。"},
+{t:"09:21",st:1,type:"pass",text:"上ノ庄。松阪の街がほどけて、あっという間に田んぼの海。7月の稲がいちばん青い時期で、窓の下半分がずっと緑色。"},
+{t:"09:27",st:2,type:"pass",text:"権現前。ホームと小さな待合だけの駅。名前の由来の権現さまはどこにいるのか、車内から探したが見つからず。宿題にする。"},
+{t:"09:36",st:3,type:"pass",text:"伊勢八太。このあたりから" + wp("雲出川") + "の気配。名松線はここから終点まで、ずっとこの川と一緒に山へ入っていく。"},
+{t:"09:40",st:4,type:"pass",text:"一志。すぐ隣に近鉄の" + wp("川合高岡駅") + "があって、乗り換えれば大阪にも行ける。でも今日は行かない。速い電車に乗らない日、というのがあっていい。"},
+{t:"09:45",st:5,type:"pass",text:"井関。乗客は自分を入れて4人になった。うち2人は明らかに同業 (旅の人) で、カメラの構え方でわかる。"},
+{t:"09:51",st:6,type:"pass",text:"伊勢大井。山がじわじわ近い。ディーゼルのエンジン音が上り坂の音に変わってきた。"},
+{t:"09:58",st:7,type:"pass",text:"伊勢川口。雲出川がついに車窓の主役になる。浅瀬で鷺が一羽、微動だにせず漁の構え。あれは信用できる釣り人の姿勢だ。"},
+{t:"10:04",st:8,type:"pass",text:"関ノ宮。駅名に「宮」と付くと降りたくなる性分だが、次の家城で降りると決めている。我慢。"},
+{t:"10:10",st:9,type:"stop",text:wp("家城駅","家城") + "で途中下車。名松線で唯一列車がすれ違える駅で、いまも駅員さんが輪っか状の" + gs("名松線 家城駅 通票 交換","通票") + "を運転士と手渡しで交換する。全国でも数えるほどしか残っていない光景を、ホームの端からじっくり見届けた。次の列車は昼過ぎ。雲出川の河原に降りて、モー太郎弁当を開ける。メロディが川に流れて少し恥ずかしい。うまい。"},
+{t:"12:19",st:10,type:"pass",text:"伊勢竹原。午後の列車で再出発。乗客は3人になった。川は谷を深くして、線路は崖と茶畑の間の細い棚を行く。"},
+{t:"12:27",st:11,type:"pass",text:"伊勢鎌倉。ホームの向こうに山しかない。いわゆる" + wp("秘境駅") + "というやつで、降りたら次の列車まで自分と山だけになる。その勇気は今日は置いてきた。"},
+{t:"12:33",st:12,type:"pass",text:"伊勢八知。" + gs("津市 美杉町","美杉") + "の集落の中心で、山の中なのに少し街の顔をする。" + gs("火の谷温泉 美杉","火の谷温泉") + "が近いらしい。温泉。次回の旅の伏線として記録しておく。"},
+{t:"12:38",st:13,type:"pass",text:"比津。トンネルと鉄橋が続いて、1両のディーゼルカーが精一杯の冒険をしている。実はこの区間、" + gs("名松線 台風 不通 復旧 2016","2009年の台風") + "で線路が流されて6年半も列車が走れなかった。"},
+{t:"12:43",st:14,type:"stop",text:"終点、" + wp("伊勢奥津駅","伊勢奥津") + "。ホームの脇に蒸気機関車時代の" + gs("伊勢奥津駅 給水塔","給水塔") + "が残っている。バス転換寸前までいったこの線を、地元の人たちが署名と汗で連れ戻したのが2016年。駅前から" + wp("伊勢本街道") + "の" + gs("奥津宿 伊勢本街道 美杉","奥津宿") + "を歩く。旧旅籠の軒先、山の湿った匂い。43.5km、名張に届かなかった線路の終わりは、想像よりずっと堂々とした「終点」だった。帰りの列車まで、蕎麦屋を探す。"},
+];
+
+// ===== 地図 =====
+const map = L.map("map");
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "&copy; OpenStreetMap contributors / 線形: ODbL / 駅位置: 駅データ.jp", maxZoom: 19
+}).addTo(map);
+const line = L.polyline(track, { color: "#4a6741", weight: 4, opacity: .7 }).addTo(map);
+map.fitBounds(line.getBounds(), { padding: [30, 30] });
+
+const R = 6371, toR = x => x * Math.PI / 180;
+function havP(a, b) {
+  const dLat = toR(b[0]-a[0]), dLon = toR(b[1]-a[1]);
+  const h = Math.sin(dLat/2)**2 + Math.cos(toR(a[0]))*Math.cos(toR(b[0]))*Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const cum = [0];
+for (let i = 1; i < track.length; i++) cum[i] = cum[i-1] + havP(track[i-1], track[i]);
+const TOTAL = cum[cum.length-1];
+function project(st) {
+  const cosLat = Math.cos(toR(st.lat));
+  let bestD = Infinity, bestS = 0;
+  for (let i = 0; i < track.length - 1; i++) {
+    const ax = track[i][1]*cosLat, ay = track[i][0];
+    const bx = track[i+1][1]*cosLat, by = track[i+1][0];
+    const px = st.lon*cosLat, py = st.lat;
+    const dx = bx-ax, dy = by-ay, len2 = dx*dx + dy*dy || 1e-12;
+    let u = Math.max(0, Math.min(1, ((px-ax)*dx + (py-ay)*dy) / len2));
+    const d = Math.hypot(px - (ax+u*dx), py - (ay+u*dy));
+    if (d < bestD) { bestD = d; bestS = cum[i] + u * (cum[i+1] - cum[i]); }
+  }
+  return bestS;
+}
+const sPos = stations.map(project);
+function latLngAt(s) {
+  s = Math.max(0, Math.min(TOTAL, s));
+  let lo = 0, hi = track.length - 1;
+  while (lo < hi - 1) { const m = (lo + hi) >> 1; if (cum[m] <= s) lo = m; else hi = m; }
+  const seg = cum[hi] - cum[lo] || 1e-12, u = (s - cum[lo]) / seg;
+  return [track[lo][0] + (track[hi][0]-track[lo][0])*u, track[lo][1] + (track[hi][1]-track[lo][1])*u];
+}
+
+const stMarkers = stations.map((s, i) =>
+  L.circleMarker(latLngAt(sPos[i]), { radius: 5, color: "#4a6741", weight: 2, fillColor: "#fff", fillOpacity: 1 })
+   .addTo(map).bindTooltip(s.name)
+);
+const avatarIcon = L.divIcon({
+  html: '<div style="font-size:26px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))">🎒</div>',
+  className: "", iconSize: [30, 30], iconAnchor: [15, 15]
+});
+const avatar = L.marker(latLngAt(sPos[0]), { icon: avatarIcon, zIndexOffset: 1000 }).addTo(map);
+
+// ===== 再生 =====
+const $ = id => document.getElementById(id);
+let shownCount = 0, playing = false, animId = null;
+let curArc = sPos[diary[0].st];
+
+function makeCard(e, i) {
+  const div = document.createElement("div");
+  div.className = "card " + e.type;
+  div.dataset.i = i;
+  const stLink = '<a href="https://ja.wikipedia.org/wiki/Special:Search?search=' + encodeURIComponent(stations[e.st].name + '駅') + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' + stations[e.st].name + '</a>';
+  div.innerHTML = '<div class="meta"><span class="time">' + e.t + '</span><span class="st">' + stLink +
+    '</span><span class="tag">' + (e.type === "stop" ? "途中下車" : "車窓から") + '</span></div><p>' + e.text + '</p>';
+  div.onclick = () => focusEntry(i);
+  return div;
+}
+function highlight(i) {
+  document.querySelectorAll(".card").forEach(c => c.classList.toggle("active", +c.dataset.i === i));
+  const e = diary[i];
+  stMarkers[e.st].setStyle({ fillColor: e.type === "stop" ? "#e8a33d" : "#cfd8b0" });
+}
+function focusEntry(i) {
+  stopPlay();
+  curArc = sPos[diary[i].st];
+  const p = latLngAt(curArc);
+  avatar.setLatLng(p); map.panTo(p);
+  highlight(i);
+}
+function moveAvatarTo(targetArc, done) {
+  const startArc = curArc, delta = targetArc - startArc;
+  const dur = Math.min(3000, 500 + Math.abs(delta) * 250);
+  const t0 = performance.now();
+  function step(now) {
+    const u = Math.min(1, (now - t0) / dur);
+    const ease = u < .5 ? 2*u*u : 1 - Math.pow(-2*u+2, 2)/2;
+    const p = latLngAt(startArc + delta * ease);
+    avatar.setLatLng(p); map.panTo(p, { animate: false });
+    if (u < 1 && playing) animId = requestAnimationFrame(step);
+    else { curArc = targetArc; if (playing) done(); }
+  }
+  animId = requestAnimationFrame(step);
+}
+function playNext() {
+  if (shownCount >= diary.length) { finish(); return; }
+  const i = shownCount, e = diary[i];
+  moveAvatarTo(sPos[e.st], () => {
+    const card = makeCard(e, i);
+    $("diary").appendChild(card);
+    requestAnimationFrame(() => card.classList.add("shown"));
+    card.scrollIntoView({ behavior: "smooth", block: "end" });
+    highlight(i);
+    shownCount++;
+    setTimeout(() => { if (playing) playNext(); }, e.type === "stop" ? 3000 : 1600);
+  });
+}
+function finish() {
+  stopPlay();
+  $("fin").style.display = "block";
+  $("playBtn").textContent = "↺ 最初から";
+  shownCount = 0;
+}
+function stopPlay() {
+  playing = false;
+  if (animId) cancelAnimationFrame(animId);
+  $("playBtn").textContent = shownCount === 0 ? "▶ 旅を再生" : "▶ 続きを再生";
+}
+$("playBtn").onclick = () => {
+  if (playing) { stopPlay(); return; }
+  if (shownCount === 0) {
+    $("diary").innerHTML = ""; $("fin").style.display = "none";
+    stMarkers.forEach(m => m.setStyle({ fillColor: "#fff" }));
+    curArc = sPos[diary[0].st];
+    avatar.setLatLng(latLngAt(curArc));
+    map.setZoom(13);
+  }
+  playing = true;
+  $("playBtn").textContent = "⏸ ひと休み";
+  playNext();
+};
+$("allBtn").onclick = () => {
+  stopPlay();
+  $("diary").innerHTML = "";
+  diary.forEach((e, i) => {
+    const card = makeCard(e, i);
+    $("diary").appendChild(card);
+    requestAnimationFrame(() => card.classList.add("shown"));
+    stMarkers[e.st].setStyle({ fillColor: e.type === "stop" ? "#e8a33d" : "#cfd8b0" });
+  });
+  $("fin").style.display = "block";
+  $("playBtn").textContent = "↺ 最初から";
+  shownCount = 0;
+  map.fitBounds(line.getBounds(), { padding: [30, 30] });
+  $("diary").scrollTop = 0;
+};
+</script>
+</body>
+</html>

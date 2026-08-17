@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分身の旅日記 第3便 - 南海加太線</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Hiragino Sans", "Yu Gothic", sans-serif; display: flex; height: 100vh; overflow: hidden; background: #f4f2f0; }
+  #map { flex: 1; }
+  #panel { width: 400px; background: #f4f2f0; display: flex; flex-direction: column; border-left: 1px solid #ddd; }
+  header { padding: 16px 20px 12px; background: #2c3a47; color: #fff; }
+  header h1 { font-size: 16px; }
+  header .sub { font-size: 12px; opacity: .85; margin-top: 4px; line-height: 1.5; }
+  #controls { display: flex; gap: 8px; padding: 10px 20px; background: #fff; border-bottom: 1px solid #e5e0d8; }
+  button { flex: 1; padding: 9px; border: none; border-radius: 6px; cursor: pointer; background: #2c3a47; color: #fff; font-size: 13px; font-weight: bold; }
+  button:hover { background: #3d5265; }
+  button.secondary { background: #c9c2b6; color: #443f38; }
+  #diary { flex: 1; overflow-y: auto; padding: 14px 20px 30px; }
+  .card { background: #fff; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); cursor: pointer; opacity: 0; transform: translateY(8px); transition: opacity .5s, transform .5s; }
+  .card.shown { opacity: 1; transform: none; }
+  .card.pass { background: #ece9e4; padding: 8px 14px; font-size: 12px; color: #6b6459; }
+  .card .meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .card .time { font-size: 11px; color: #999; }
+  .card .st { font-weight: bold; font-size: 15px; color: #2c3a47; }
+  .card .st a { color: inherit; text-decoration: none; border-bottom: 1px dotted #2c3a47; }
+  .card .st a:hover { background: #e9edf1; }
+  .card .tag { font-size: 10px; background: #e8657c; color: #fff; border-radius: 3px; padding: 1px 5px; }
+  .card.pass .tag { background: #a5a095; }
+  .card p { font-size: 13px; line-height: 1.8; color: #3a362f; }
+  .card p a { color: #2c3a47; text-decoration: none; border-bottom: 1px dotted #2c3a47; }
+  .card p a:hover { background: #e9edf1; }
+  .card.active { outline: 2px solid #e8657c; }
+  #fin { text-align: center; font-size: 12px; color: #999; padding: 10px 0 20px; display: none; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="panel">
+  <header>
+    <h1>🐈‍⬛ 分身クロの旅日記 - 第3便</h1>
+    <div class="sub">南海加太線 (南海電鉄) 和歌山市 → 加太 (共用区間含め12.0km)<br>2026年7月12日 (日) 晴れ / 廃線と橋梁に目がない無口な猫</div>
+  </header>
+  <div id="controls">
+    <button id="playBtn">▶ 旅を再生</button>
+    <button id="allBtn" class="secondary">全部読む</button>
+  </div>
+  <div id="diary"></div>
+  <div id="fin">— 第3便はここまで。クロは膝の上で寝ています —</div>
+</div>
+<script>
+const stations = [
+  {name:"和歌山市",lat:34.236925,lon:135.166538},
+  {name:"紀ノ川",lat:34.254937,lon:135.165908},
+  {name:"東松江",lat:34.247837,lon:135.141082},
+  {name:"中松江",lat:34.248781,lon:135.13291},
+  {name:"八幡前",lat:34.252592,lon:135.121744},
+  {name:"西ノ庄",lat:34.255461,lon:135.110786},
+  {name:"二里ヶ浜",lat:34.257627,lon:135.104025},
+  {name:"磯ノ浦",lat:34.260549,lon:135.094495},
+  {name:"加太",lat:34.275283,lon:135.080773},
+];
+
+// OpenStreetMapから経路探索で取得した実線形 (和歌山市→紀ノ川は南海本線共用)
+const track = [
+[34.236731,135.166576],[34.237413,135.167586],[34.237925,135.168206],[34.240403,135.171888],[34.240848,135.17228],[34.241334,135.17256],[34.241853,135.172721],[34.242394,135.172742],[34.242965,135.172639],[34.249771,135.170775],[34.250825,135.170468],[34.251502,135.170163],[34.252132,135.169755],[34.252729,135.169267],[34.253535,135.168397],[34.254222,135.167386],[34.25474,135.166385],[34.255348,135.164977],[34.255702,135.163834],[34.255771,135.162846],[34.25569,135.162188],[34.25554,135.16168],[34.252379,135.153628],[34.251066,135.150475],[34.250664,135.149827],[34.248221,135.146613],[34.24778,135.145893],[34.247615,135.145417],[34.247508,135.144814],[34.247513,135.143765],[34.24794,135.139059],[34.248392,135.134592],[34.248502,135.133873],[34.250842,135.125625],[34.253164,135.120619],[34.254243,135.118859],[34.254449,135.118362],[34.255842,135.108493],[34.256033,135.107828],[34.257109,135.10554],
+[34.257405,135.104767],[34.257579,135.104118],[34.257892,135.102445],[34.259078,135.099974],[34.259397,135.099205],[34.261455,135.091011],[34.261643,135.090477],[34.261874,135.090087],[34.262212,135.089776],[34.262528,135.089563],[34.262961,135.089403],[34.263521,135.089398],[34.26473,135.089592],[34.26664,135.089641],[34.267085,135.089576],[34.267675,135.089273],[34.268425,135.088657],[34.268729,135.088279],[34.268966,135.087754],[34.269766,135.085377],[34.269982,135.084943],[34.270236,135.084666],[34.270629,135.08442],[34.271,135.084312],[34.273076,135.084105],[34.273579,135.084003],[34.274439,135.08361],[34.274652,135.083479],[34.274965,135.083182],[34.2752,135.082794],[34.275327,135.082402],[34.275365,135.082115],[34.275351,135.081703],[34.275187,135.080559]
+];
+
+// ===== 旅日記 =====
+const wp = (term, label) => '<a href="https://ja.wikipedia.org/wiki/' + encodeURIComponent(term) + '" target="_blank" rel="noopener">' + (label || term) + '</a>';
+const gs = (query, label) => '<a href="https://www.google.com/search?q=' + encodeURIComponent(query) + '" target="_blank" rel="noopener">' + label + '</a>';
+const diary = [
+{t:"10:02",st:0,type:"stop",text:"和歌山市駅。今日の電車は" + gs("南海 めでたいでんしゃ","めでたいでんしゃ") + "というらしい。車体が鯛。つり革も鯛。座席も鯛。魚に囲まれて出発する。悪くない気分。"},
+{t:"10:06",st:1,type:"stop",text:"紀ノ川駅で降りる。ここまでは本線の線路を借りて走る。目的はさっき渡った" + gs("南海本線 紀ノ川橋梁 トラス橋","紀ノ川橋梁") + "。明治生まれのトラス橋。土手に座って、鉄の骨組みが川風に鳴るのを聴く。次の電車まで三十分。橋を見るには短いくらいだ。"},
+{t:"10:49",st:2,type:"stop",text:"東松江。ここから北へ、昔は線路が延びていた。" + gs("南海加太線 北島支線 廃線跡","北島支線") + "。台風が橋を落として、そのまま消えた線。跡地は今、猫道になっている。先輩たちの縄張りに敬意を払い、匂いだけ確かめて戻る。錆の残り香。良い。"},
+{t:"11:38",st:3,type:"pass",text:"中松江。屋根の上に鳶。目が合った。負けた気がする。"},
+{t:"11:40",st:4,type:"pass",text:"八幡前。八幡さまの森がちらり。昼寝に良い木陰と見た。記憶しておく。"},
+{t:"11:43",st:5,type:"pass",text:"西ノ庄。畑。同業を二匹目撃。挨拶はしない。そういう決まりだから。"},
+{t:"11:45",st:6,type:"pass",text:"二里ヶ浜。窓の下がもう砂浜。波の音がレールの継ぎ目の音に混ざる。"},
+{t:"11:47",st:7,type:"pass",text:"" + gs("磯ノ浦 サーフィン","磯ノ浦") + "。サーファーが浮かんでいる。人間は好んで濡れる。理解はしない。尊重はする。"},
+{t:"11:52",st:8,type:"stop",text:"終点、" + wp("加太駅","加太") + "。木造の駅舎、明治から建っている。港はしらす丼の匂い。耐える。船着き場の先、沖に" + wp("友ヶ島") + "。" + wp("由良要塞") + "の砲台跡が眠る島。煉瓦の穴ぐら、蔦、静けさ。廃墟は良い。誰も急かさない。" + wp("淡嶋神社") + "の人形たちに見送られて、今日の旅はここまで。帰りは誰かの膝で寝る。"},
+];
+
+// ===== 地図 =====
+const map = L.map("map");
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "&copy; OpenStreetMap contributors / 線形: ODbL / 駅位置: 駅データ.jp", maxZoom: 19
+}).addTo(map);
+const line = L.polyline(track, { color: "#2c3a47", weight: 4, opacity: .7 }).addTo(map);
+map.fitBounds(line.getBounds(), { padding: [30, 30] });
+
+const R = 6371, toR = x => x * Math.PI / 180;
+function havP(a, b) {
+  const dLat = toR(b[0]-a[0]), dLon = toR(b[1]-a[1]);
+  const h = Math.sin(dLat/2)**2 + Math.cos(toR(a[0]))*Math.cos(toR(b[0]))*Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const cum = [0];
+for (let i = 1; i < track.length; i++) cum[i] = cum[i-1] + havP(track[i-1], track[i]);
+const TOTAL = cum[cum.length-1];
+function project(st) {
+  const cosLat = Math.cos(toR(st.lat));
+  let bestD = Infinity, bestS = 0;
+  for (let i = 0; i < track.length - 1; i++) {
+    const ax = track[i][1]*cosLat, ay = track[i][0];
+    const bx = track[i+1][1]*cosLat, by = track[i+1][0];
+    const px = st.lon*cosLat, py = st.lat;
+    const dx = bx-ax, dy = by-ay, len2 = dx*dx + dy*dy || 1e-12;
+    let u = Math.max(0, Math.min(1, ((px-ax)*dx + (py-ay)*dy) / len2));
+    const d = Math.hypot(px - (ax+u*dx), py - (ay+u*dy));
+    if (d < bestD) { bestD = d; bestS = cum[i] + u * (cum[i+1] - cum[i]); }
+  }
+  return bestS;
+}
+const sPos = stations.map(project);
+function latLngAt(s) {
+  s = Math.max(0, Math.min(TOTAL, s));
+  let lo = 0, hi = track.length - 1;
+  while (lo < hi - 1) { const m = (lo + hi) >> 1; if (cum[m] <= s) lo = m; else hi = m; }
+  const seg = cum[hi] - cum[lo] || 1e-12, u = (s - cum[lo]) / seg;
+  return [track[lo][0] + (track[hi][0]-track[lo][0])*u, track[lo][1] + (track[hi][1]-track[lo][1])*u];
+}
+
+const stMarkers = stations.map((s, i) =>
+  L.circleMarker(latLngAt(sPos[i]), { radius: 5, color: "#2c3a47", weight: 2, fillColor: "#fff", fillOpacity: 1 })
+   .addTo(map).bindTooltip(s.name)
+);
+const avatarIcon = L.divIcon({
+  html: '<div style="font-size:26px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))">🐈‍⬛</div>',
+  className: "", iconSize: [30, 30], iconAnchor: [15, 15]
+});
+const avatar = L.marker(latLngAt(sPos[0]), { icon: avatarIcon, zIndexOffset: 1000 }).addTo(map);
+
+// ===== 再生 =====
+const $ = id => document.getElementById(id);
+let shownCount = 0, playing = false, animId = null;
+let curArc = sPos[diary[0].st];
+
+function makeCard(e, i) {
+  const div = document.createElement("div");
+  div.className = "card " + e.type;
+  div.dataset.i = i;
+  const stLink = '<a href="https://ja.wikipedia.org/wiki/Special:Search?search=' + encodeURIComponent(stations[e.st].name + '駅') + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' + stations[e.st].name + '</a>';
+  div.innerHTML = '<div class="meta"><span class="time">' + e.t + '</span><span class="st">' + stLink +
+    '</span><span class="tag">' + (e.type === "stop" ? "途中下車" : "車窓から") + '</span></div><p>' + e.text + '</p>';
+  div.onclick = () => focusEntry(i);
+  return div;
+}
+function highlight(i) {
+  document.querySelectorAll(".card").forEach(c => c.classList.toggle("active", +c.dataset.i === i));
+  const e = diary[i];
+  stMarkers[e.st].setStyle({ fillColor: e.type === "stop" ? "#e8657c" : "#c8d1c0" });
+}
+function focusEntry(i) {
+  stopPlay();
+  curArc = sPos[diary[i].st];
+  const p = latLngAt(curArc);
+  avatar.setLatLng(p); map.panTo(p);
+  highlight(i);
+}
+function moveAvatarTo(targetArc, done) {
+  const startArc = curArc, delta = targetArc - startArc;
+  const dur = Math.min(3000, 500 + Math.abs(delta) * 400);
+  const t0 = performance.now();
+  function step(now) {
+    const u = Math.min(1, (now - t0) / dur);
+    const ease = u < .5 ? 2*u*u : 1 - Math.pow(-2*u+2, 2)/2;
+    const p = latLngAt(startArc + delta * ease);
+    avatar.setLatLng(p); map.panTo(p, { animate: false });
+    if (u < 1 && playing) animId = requestAnimationFrame(step);
+    else { curArc = targetArc; if (playing) done(); }
+  }
+  animId = requestAnimationFrame(step);
+}
+function playNext() {
+  if (shownCount >= diary.length) { finish(); return; }
+  const i = shownCount, e = diary[i];
+  moveAvatarTo(sPos[e.st], () => {
+    const card = makeCard(e, i);
+    $("diary").appendChild(card);
+    requestAnimationFrame(() => card.classList.add("shown"));
+    card.scrollIntoView({ behavior: "smooth", block: "end" });
+    highlight(i);
+    shownCount++;
+    setTimeout(() => { if (playing) playNext(); }, e.type === "stop" ? 3200 : 1600);
+  });
+}
+function finish() {
+  stopPlay();
+  $("fin").style.display = "block";
+  $("playBtn").textContent = "↺ 最初から";
+  shownCount = 0;
+}
+function stopPlay() {
+  playing = false;
+  if (animId) cancelAnimationFrame(animId);
+  $("playBtn").textContent = shownCount === 0 ? "▶ 旅を再生" : "▶ 続きを再生";
+}
+$("playBtn").onclick = () => {
+  if (playing) { stopPlay(); return; }
+  if (shownCount === 0) {
+    $("diary").innerHTML = ""; $("fin").style.display = "none";
+    stMarkers.forEach(m => m.setStyle({ fillColor: "#fff" }));
+    curArc = sPos[diary[0].st];
+    avatar.setLatLng(latLngAt(curArc));
+    map.setZoom(14);
+  }
+  playing = true;
+  $("playBtn").textContent = "⏸ ひと休み";
+  playNext();
+};
+$("allBtn").onclick = () => {
+  stopPlay();
+  $("diary").innerHTML = "";
+  diary.forEach((e, i) => {
+    const card = makeCard(e, i);
+    $("diary").appendChild(card);
+    requestAnimationFrame(() => card.classList.add("shown"));
+    stMarkers[e.st].setStyle({ fillColor: e.type === "stop" ? "#e8657c" : "#c8d1c0" });
+  });
+  $("fin").style.display = "block";
+  $("playBtn").textContent = "↺ 最初から";
+  shownCount = 0;
+  map.fitBounds(line.getBounds(), { padding: [30, 30] });
+  $("diary").scrollTop = 0;
+};
+</script>
+</body>
+</html>

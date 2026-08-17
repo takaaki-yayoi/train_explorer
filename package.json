@@ -1,0 +1,19 @@
+{
+  "name": "bunshin-tabi-nikki",
+  "version": "1.0.0",
+  "description": "分身の旅日記 — 分身が日本の実在鉄道路線を旅する非同期体験 (v1: 公共の便)",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "serve": "node server.js",
+    "build": "node scripts/build-static.js",
+    "build-samples": "node scripts/build-samples.js",
+    "fetch-track": "node scripts/fetch-track.js",
+    "generate-trip": "node scripts/generate-trip.js",
+    "generate-daily": "node scripts/generate-daily.js",
+    "list-lines": "node scripts/list-lines.js"
+  }
+}
