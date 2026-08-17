@@ -270,6 +270,18 @@ a.cta:hover { background: #d9536b; }
 }
 #loading.hidden { display: none; }
 
+/* 静的本文 (クローラ / JS無効時のみ表示)。JS が動けばビューアが同じ内容を描くので隠す。 */
+.js #seoArticle { display: none; }
+#seoArticle { max-width: 700px; margin: 0 auto; padding: 28px 18px 64px; background: var(--paper); }
+#seoArticle h1 { font-size: 20px; line-height: 1.5; margin-bottom: 8px; }
+#seoArticle .seo-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+#seoArticle h2 { font-size: 15px; margin: 22px 0 6px; }
+#seoArticle h2 .seo-time { font-size: 11px; color: #999; font-weight: normal; margin-right: 8px; }
+#seoArticle h2 .seo-tag { font-size: 10px; color: #fff; background: var(--accent); border-radius: 3px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
+#seoArticle p { font-size: 13px; line-height: 1.85; color: #3a362f; }
+#seoArticle .seo-nav { margin-top: 36px; border-top: 1px solid #ddd; padding-top: 16px; font-size: 13px; }
+#seoArticle .seo-nav li { margin: 4px 0; list-style: none; }
+
 /* モバイル: 縦積み (地図上 / 日記下) */
 @media (max-width: 720px) {
   #app { flex-direction: column; }

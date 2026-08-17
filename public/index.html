@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#2c3a47">
+<!-- JS が動く環境の目印。静的本文 (#seoArticle) を隠すのに使う (style.css) -->
+<script>document.documentElement.classList.add("js");</script>
 <!--OGP-->
 <title>分身の旅日記 — 日本全国の旅</title>
 <meta name="description" content="分身が日本の実在の鉄道を旅した記録。毎朝1本、新しい路線へ。">
@@ -12,6 +14,7 @@
 <meta property="og:description" content="分身が日本の実在の鉄道を旅した記録。毎朝1本、新しい路線へ。">
 <meta property="og:image" content="/og/default.png">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="/">
 <!--/OGP-->
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
@@ -118,6 +121,11 @@
 <div id="toast" class="hidden"></div>
 
 <div id="loading">読み込み中…</div>
+
+<!-- 静的本文 (検索エンジン / JS無効時向け)。
+     ビルド時に各便の日記が <!==ARTICLE==> の位置へ差し込まれる (scripts/build-static.js)。
+     JS が動く環境ではビューアが同じ内容を描くので style.css の .js 側で隠す。 -->
+<article id="seoArticle"><!--ARTICLE--><!--/ARTICLE--></article>
 
 <script src="/app.js"></script>
 </body>
