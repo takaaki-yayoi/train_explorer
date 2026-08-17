@@ -85,6 +85,19 @@
   </div>
 </div>
 
+<!-- 共有シート -->
+<div id="shareSheet" class="hidden">
+  <div class="sheet-inner">
+    <div class="sheet-head"><span>この旅を共有</span><button id="shareClose" class="icon">✕</button></div>
+    <div class="share-grid">
+      <button class="share-btn x" data-net="x">X で共有</button>
+      <button class="share-btn line" data-net="line">LINE で共有</button>
+      <button class="share-btn fb" data-net="fb">Facebook で共有</button>
+      <button class="share-btn copy" data-net="copy">🔗 リンクをコピー</button>
+    </div>
+  </div>
+</div>
+
 <!-- 生成中オーバーレイ -->
 <div id="genOverlay" class="hidden">
   <div class="gen-box">
@@ -95,6 +108,8 @@
     <button id="genCancel" class="secondary">閉じる</button>
   </div>
 </div>
+
+<div id="toast" class="hidden"></div>
 
 <div id="loading">読み込み中…</div>
 

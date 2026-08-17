@@ -392,20 +392,47 @@
       map.fitBounds(line.getBounds(), { padding: [30, 30] });
       $("diary").scrollTop = 0;
     };
-    $("shareBtn").onclick = share;
+    $("shareBtn").onclick = openShareSheet;
     $("archiveBtn").onclick = () => $("archiveSheet").classList.remove("hidden");
     $("archiveClose").onclick = () => $("archiveSheet").classList.add("hidden");
     $("archiveSheet").onclick = (e) => { if (e.target.id === "archiveSheet") $("archiveSheet").classList.add("hidden"); };
   }
 
-  async function share() {
-    const url = location.origin + `/trips/${trip.date}`;
-    const text = `${trip.persona.emoji} 分身${trip.persona.name}の${trip.line.name}の旅日記`;
-    if (navigator.share) {
-      try { await navigator.share({ title: "分身の旅日記", text, url }); return; } catch { /* cancelled */ }
+  function shareTarget() {
+    const path = trip.meta && trip.meta.on_demand ? `/l/${trip.line.line_cd}` : `/trips/${trip.date}`;
+    return {
+      url: location.origin + path,
+      text: `${trip.persona.emoji} 分身${trip.persona.name}の旅日記 — ${trip.line.name}`,
+    };
+  }
+  function openShareSheet() { $("shareSheet").classList.remove("hidden"); }
+  function closeShareSheet() { $("shareSheet").classList.add("hidden"); }
+  function openShareNet(net) {
+    const { url, text } = shareTarget();
+    const u = encodeURIComponent(url), t = encodeURIComponent(text);
+    let href = null;
+    if (net === "x") href = `https://twitter.com/intent/tweet?text=${t}&url=${u}`;
+    else if (net === "line") href = `https://social-plugins.line.me/lineit/share?url=${u}`;
+    else if (net === "fb") href = `https://www.facebook.com/sharer/sharer.php?u=${u}`;
+    if (href) {
+      window.open(href, "_blank", "noopener,noreferrer,width=600,height=640");
+      closeShareSheet();
+      return;
     }
-    try { await navigator.clipboard.writeText(url); alert("リンクをコピーしました:\n" + url); }
+    if (net === "copy") copyLink(url);
+  }
+  async function copyLink(url) {
+    try { await navigator.clipboard.writeText(url); toast("リンクをコピーしました"); }
     catch { prompt("このリンクを共有:", url); }
+    closeShareSheet();
+  }
+  let _toastTimer = null;
+  function toast(msg) {
+    const el = $("toast");
+    el.textContent = msg;
+    el.classList.remove("hidden");
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => el.classList.add("hidden"), 2200);
   }
 
   // ---- アーカイブ (連載一覧) ----
@@ -435,6 +462,10 @@
     $("pickSheet").onclick = (e) => { if (e.target.id === "pickSheet") closePicker(); };
     $("pickInput").oninput = () => renderPickList($("pickInput").value.trim());
     $("genCancel").onclick = closeGen;
+    // 共有シート
+    $("shareClose").onclick = closeShareSheet;
+    $("shareSheet").onclick = (e) => { if (e.target.id === "shareSheet") closeShareSheet(); };
+    document.querySelectorAll(".share-btn").forEach((b) => { b.onclick = () => openShareNet(b.dataset.net); });
   }
 
   async function openPicker() {
