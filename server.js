@@ -179,6 +179,13 @@ const server = createServer(async (req, res) => {
     return sendFile(res, filePath);
   }
 
+  // 本番 (Cloudflare) と同じく 404.html を 404 で返す
+  const notFound = join(PUBLIC, "404.html");
+  if (existsSync(notFound)) {
+    const body = readFileSync(notFound);
+    res.writeHead(404, { "content-type": "text/html; charset=utf-8", "content-length": body.length });
+    return res.end(body);
+  }
   res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
   res.end("Not Found");
 });

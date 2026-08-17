@@ -1,15 +1,16 @@
 // Cloudflare (Workers 静的アセット) 用の設定。
-// build-static.js が組み立てた dist/ を配信し、実ファイルが無いパスには
-// index.html を返す (SPA ルーティング)。/trips/*.json などの実ファイルは
-// アセットが優先されるので巻き込まれない。
+// build-static.js が組み立てた dist/ を配信する。
 {
   "name": "train-explorer",
   "compatibility_date": "2025-06-01",
   "assets": {
     "directory": "./dist",
     // /trips/<date> は実ファイル /trips/<date>.html (便ごとのOGPメタ入り) を配信。
-    // 該当ファイルが無いパスだけ index.html にフォールバック (SPA)。
     "html_handling": "auto-trailing-slash",
-    "not_found_handling": "single-page-application"
+    // 実ファイルが無いパスは 404.html を 404 で返す。
+    // 以前の single-page-application は「存在しないURLでも index.html を 200 で返す」ため、
+    // /sitemap.xml が (未デプロイ時に) HTML に化けたり、検索エンジンに soft 404 と
+    // 見なされたりする。旅ページは全て実ファイルなので SPA フォールバックは不要。
+    "not_found_handling": "404-page"
   }
 }
