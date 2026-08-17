@@ -134,8 +134,21 @@ header .backlink {
 header .backlink:hover { background: rgba(255,255,255,.22); color: #fff; }
 #homePanel header h1 { font-size: 17px; }
 #homePanel .sub { font-size: 12px; opacity: .88; margin-top: 5px; line-height: 1.6; }
+#homeIntro { padding: 14px 20px 6px; }
+#homeIntro p { font-size: 13.5px; line-height: 1.95; color: #3a362f; }
+#homeIntro p b { color: var(--ink); }
+#homeTeaser {
+  display: block; margin: 12px 0 4px; padding: 11px 14px 12px;
+  background: #fff; border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0;
+  font-size: 12.5px; line-height: 1.85; color: #6b6459; text-decoration: none;
+}
+#homeTeaser:hover { background: #fbf7f4; }
+#homeTeaser .tq { color: var(--accent); font-weight: bold; }
+#homeTeaser .tmore { display: block; margin-top: 7px; color: var(--accent); font-weight: bold; font-size: 12px; }
+
 #homeStats {
-  display: flex; gap: 6px; padding: 14px 20px; background: #fff; border-bottom: 1px solid #e5e0d8;
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 14px 20px; background: #fff;
+  border-top: 1px solid #e5e0d8; border-bottom: 1px solid #e5e0d8;
 }
 #homeStats .stat { flex: 1; text-align: center; }
 #homeStats .num { font-size: 22px; font-weight: bold; color: var(--ink); line-height: 1.1; }

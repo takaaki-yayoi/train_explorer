@@ -88,7 +88,17 @@
       `<div class="stat"><div class="num">${Math.round(ov.stats.km)}</div><div class="lbl">累計km</div></div>` +
       `<div class="cov">日本の鉄道 約610路線を、分身が少しずつ旅していきます</div>`;
 
-    if (ov.trips.length) $("todayBtn").href = ov.trips[0].url;
+    const t0 = ov.trips[0];
+    if (t0 && t0.teaser) {
+      const tz = $("homeTeaser");
+      tz.href = t0.url;
+      tz.innerHTML =
+        `<span class="tq">「</span>${t0.teaser}<span class="tq">」</span>` +
+        `<span class="tmore">${t0.persona ? t0.persona.emoji + " " : ""}今朝の便を読む →</span>`;
+      tz.classList.remove("hidden");
+    }
+
+    if (t0) $("todayBtn").href = t0.url;
     else $("todayBtn").classList.add("hidden");
 
     const ul = $("homeList");
