@@ -124,7 +124,14 @@ a.icon { text-decoration: none; display: inline-flex; align-items: center; }
   width: 400px; max-width: 42vw; background: var(--paper);
   display: flex; flex-direction: column; border-left: 1px solid #ddd;
 }
-#homePanel header { padding: 16px 20px 12px; background: var(--ink); color: #fff; }
+#homePanel header { padding: 12px 20px 12px; background: var(--ink); color: #fff; }
+header .backlink {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: #c9d3dc; text-decoration: none; font-size: 12.5px; font-weight: bold;
+  margin-bottom: 9px; padding: 3px 9px 3px 7px; border-radius: 20px;
+  background: rgba(255,255,255,.1);
+}
+header .backlink:hover { background: rgba(255,255,255,.22); color: #fff; }
 #homePanel header h1 { font-size: 17px; }
 #homePanel .sub { font-size: 12px; opacity: .88; margin-top: 5px; line-height: 1.6; }
 #homeStats {
