@@ -21,28 +21,38 @@
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<!-- トップ: 日本全国カバレッジマップ -->
+<!-- トップ: 縦スクロールのランディング -->
 <div id="homeView" class="hidden">
-  <div id="homeMap"></div>
-  <div id="homePanel">
-    <header>
-      <div class="titlerow">
-        <h1>🚃 分身の旅日記</h1>
-        <span class="headbtns">
-          <button id="homePickBtn" class="icon hidden" title="路線を選んで旅する">🚃</button>
-        </span>
-      </div>
-      <div class="sub">分身が日本の鉄道を旅した記録。毎朝1本、新しい路線へ。</div>
-    </header>
-    <div id="homeIntro">
-      <p>分身が、日本の実在の鉄道を勝手に旅します。途中下車した駅の名物や、車窓に流れる川や橋のことを、一人称の日記にして<b>毎朝1本</b>お届け。あなたは地図を眺めながら、その旅を追うだけ。</p>
-      <a id="homeTeaser" class="hidden" href="/"></a>
-    </div>
-    <div id="homeStats"></div>
+  <header class="site-header">
+    <a href="/" class="brand">🚃 分身の旅日記</a>
+    <span class="hdr-btns">
+      <button id="homePickBtn" class="hdr-btn hidden">🚃 路線を選ぶ</button>
+      <button id="homeShareBtn" class="hdr-btn">🔗 共有</button>
+    </span>
+  </header>
+
+  <section class="hero">
+    <p class="hero-lead">分身が、日本の実在の鉄道を勝手に旅します。途中下車した駅の名物や、車窓に流れる川や橋のことを、一人称の日記にして<b>毎朝1本</b>お届け。あなたは地図を眺めながら、その旅を追うだけ。</p>
+    <a id="homeTeaser" class="hidden" href="/"></a>
     <a id="todayBtn" href="/" class="cta">▶ 今朝の便を読む</a>
-    <div id="homeListWrap"><ul id="homeList"></ul></div>
-    <footer id="homeCredit"></footer>
-  </div>
+  </section>
+
+  <section class="coverage">
+    <div id="homeStats"></div>
+    <div id="homeMap"></div>
+    <p class="coverage-cap">旅した路線が増えるほど、日本が線で埋まっていきます。線やリストをクリックでその旅へ。</p>
+  </section>
+
+  <section class="serial">
+    <div class="sec-h">連載</div>
+    <ul id="homeList"></ul>
+  </section>
+
+  <footer class="site-footer">
+    <div class="foot-about">「分身の旅日記」は、実在の鉄道路線を分身が旅し、沿線の実在スポット(名物・史跡・河川・橋梁・廃線跡など)を織り込んだ一人称の日記を、毎朝お届けするサービスです。操作する旅ではなく、分身が勝手にした旅の報告を、地図とともに受け取ってください。</div>
+    <div class="foot-credit">駅位置: <a href="https://ekidata.jp/" target="_blank" rel="noopener">駅データ.jp</a> ／ 線形: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> (ODbL) ／ 航空写真: <a href="https://maps.gsi.go.jp/" target="_blank" rel="noopener">地理院タイル</a></div>
+    <div class="foot-copy">© 2026 分身の旅日記</div>
+  </footer>
 </div>
 
 <!-- 個別の旅ビューア -->

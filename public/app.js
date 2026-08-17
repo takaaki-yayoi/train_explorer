@@ -27,7 +27,7 @@
 
   let map, line, track, cum, TOTAL, stMarkers = [], avatar, sPos = [], trip;
   let baseLayers = {};
-  let linesCache = null, genES = null, genSettled = false;
+  let linesCache = null, genES = null, genSettled = false, shareCtx = null;
 
   async function boot() {
     // 生成バックエンド (ローカル Node) があれば 🚃 を有効化する。静的ホストでは無効。
@@ -53,6 +53,10 @@
   // ---- トップ: 日本全国カバレッジマップ ----
   async function renderHome() {
     document.title = "分身の旅日記 — 日本全国の旅";
+    shareCtx = {
+      url: location.origin + "/",
+      text: "分身の旅日記 — 分身が日本の実在の鉄道を旅して、毎朝あなたに日記を届ける",
+    };
     let ov;
     try { ov = await fetchJson("/trips/overview.json"); }
     catch { ov = { stats: { trips: 0, lines: 0, km: 0 }, trips: [] }; }
@@ -111,8 +115,6 @@
         `<span><span class="h-line">${t.line.name}</span> <span class="h-co">${t.line.company}</span></span></a>`;
       ul.appendChild(li);
     }
-    $("homeCredit").textContent = "駅位置: 駅データ.jp / 線形: © OpenStreetMap contributors (ODbL)";
-
     if (canGenerate) $("homePickBtn").classList.remove("hidden");
     $("homePickBtn").onclick = openPicker;
 
@@ -157,6 +159,10 @@
     trip = t;
     const want = trip.meta && trip.meta.on_demand ? `/l/${trip.line.line_cd}` : `/trips/${trip.date}`;
     if (location.pathname !== want) history.replaceState(null, "", want);
+    shareCtx = {
+      url: location.origin + want,
+      text: `${trip.persona.emoji} 分身${trip.persona.name}の旅日記 — ${trip.line.name}`,
+    };
     render();
   }
 
@@ -409,11 +415,7 @@
   }
 
   function shareTarget() {
-    const path = trip.meta && trip.meta.on_demand ? `/l/${trip.line.line_cd}` : `/trips/${trip.date}`;
-    return {
-      url: location.origin + path,
-      text: `${trip.persona.emoji} 分身${trip.persona.name}の旅日記 — ${trip.line.name}`,
-    };
+    return shareCtx || { url: location.origin + "/", text: "分身の旅日記 — 分身が日本の鉄道を旅する" };
   }
   function openShareSheet() { $("shareSheet").classList.remove("hidden"); }
   function closeShareSheet() { $("shareSheet").classList.add("hidden"); }
@@ -473,6 +475,7 @@
     $("pickInput").oninput = () => renderPickList($("pickInput").value.trim());
     $("genCancel").onclick = closeGen;
     // 共有シート
+    $("homeShareBtn").onclick = openShareSheet;
     $("shareClose").onclick = closeShareSheet;
     $("shareSheet").onclick = (e) => { if (e.target.id === "shareSheet") closeShareSheet(); };
     document.querySelectorAll(".share-btn").forEach((b) => { b.onclick = () => openShareNet(b.dataset.net); });
