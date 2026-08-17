@@ -7,6 +7,9 @@
   "compatibility_date": "2025-06-01",
   "assets": {
     "directory": "./dist",
+    // /trips/<date> は実ファイル /trips/<date>.html (便ごとのOGPメタ入り) を配信。
+    // 該当ファイルが無いパスだけ index.html にフォールバック (SPA)。
+    "html_handling": "auto-trailing-slash",
     "not_found_handling": "single-page-application"
   }
 }

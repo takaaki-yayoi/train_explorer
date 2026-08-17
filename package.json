@@ -15,5 +15,8 @@
     "generate-trip": "node scripts/generate-trip.js",
     "generate-daily": "node scripts/generate-daily.js",
     "list-lines": "node scripts/list-lines.js"
+  },
+  "dependencies": {
+    "@resvg/resvg-wasm": "^2.6.2"
   }
 }
