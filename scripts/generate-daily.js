@@ -27,9 +27,10 @@ function tomorrow() {
 const date = arg("date") || tomorrow();
 const explicitLine = arg("line") ? Number(arg("line")) : null;
 
-// 既に生成済みなら何もしない (冪等)
-if (loadTrip(date)) {
-  console.error(`${date} の便は既に存在します。スキップ。`);
+// 既に生成済みなら何もしない (冪等)。--force で上書き再生成。
+const force = process.argv.includes("--force");
+if (!force && loadTrip(date)) {
+  console.error(`${date} の便は既に存在します。スキップ (上書きするなら --force)。`);
   process.exit(0);
 }
 

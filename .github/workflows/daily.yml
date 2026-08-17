@@ -10,7 +10,12 @@ on:
   schedule:
     # 19:00 UTC = 04:00 JST。その日 (JST) の朝の便を用意する。
     - cron: "0 19 * * *"
-  workflow_dispatch: {} # 手動実行も可
+  workflow_dispatch: # 手動実行も可
+    inputs:
+      force:
+        description: "当日の便を上書き再生成する (不出来な便を作り直す)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write # trips/ をコミットして push するため
@@ -28,7 +33,7 @@ jobs:
       - name: 便を生成 (JST の当日分)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: node scripts/generate-daily.js --date "$(TZ=Asia/Tokyo date +%F)"
+        run: node scripts/generate-daily.js --date "$(TZ=Asia/Tokyo date +%F)" ${{ github.event.inputs.force == 'true' && '--force' || '' }}
 
       - name: コミット & push
         run: |
