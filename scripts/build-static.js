@@ -17,7 +17,7 @@ import { buildOverview, allTrips } from "../lib/trips-store.js";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
 const DIST = join(ROOT, "dist");
-const SITE = (process.env.SITE_URL || "https://train-explorer.noteigi.workers.dev").replace(/\/$/, "");
+const SITE = (process.env.SITE_URL || "https://bunshin-tabi.com").replace(/\/$/, "");
 
 const esc = (s) =>
   String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
