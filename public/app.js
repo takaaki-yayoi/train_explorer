@@ -65,11 +65,13 @@
     const layers = [];
     for (const t of ov.trips) {
       if (!t.track || t.track.length < 2) continue;
-      const pl = L.polyline(t.track, { color: "#e8657c", weight: 3, opacity: 0.85 }).addTo(hmap);
+      // 白いケーシング(ふち)を敷いてから濃い紫の本線 → OSMの赤系(道路/鉄道)と紛れず、
+      // 明るい土地でも暗い地物の上でも浮いて見える。
+      L.polyline(t.track, { color: "#ffffff", weight: 6, opacity: 0.9 }).addTo(hmap);
+      const pl = L.polyline(t.track, { color: "#6d28d9", weight: 3.5, opacity: 1 }).addTo(hmap);
       const emoji = t.persona ? t.persona.emoji : "🚃";
       pl.bindTooltip(`<span class="home-line-tip">${emoji} <b>${t.line.name}</b><br>${t.date}</span>`, { sticky: true });
-      const go = () => { location.href = t.url; };
-      pl.on("click", go);
+      pl.on("click", () => { location.href = t.url; });
       layers.push(pl);
     }
     if (layers.length) {
