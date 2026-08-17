@@ -473,9 +473,13 @@
     if (genES) { genES.close(); genES = null; }
   }
 
-  // ---- PWA ----
+  // ---- Service Worker は廃止 (v1) ----
+  // 以前登録された SW がナビゲーションを壊すため、登録はせず、残っていれば解除する。
+  // (壊れて真っ白になったブラウザは sw.js のキルスイッチ側でも自動回復する)
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    navigator.serviceWorker.getRegistrations()
+      .then((rs) => rs.forEach((r) => r.unregister()))
+      .catch(() => {});
   }
 
   boot();
