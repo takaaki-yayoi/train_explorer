@@ -73,8 +73,9 @@ try {
   const og = await import("../lib/ogimage.js");
   mkdirSync(join(DIST, "og", "trips"), { recursive: true });
   mkdirSync(join(DIST, "og", "l"), { recursive: true });
+  const siteHost = SITE.replace(/^https?:\/\//, "");
   for (const t of trips) {
-    writeFileSync(join(DIST, t.ogPath.slice(1)), await og.renderPng(og.tripSvg(t.trip)));
+    writeFileSync(join(DIST, t.ogPath.slice(1)), await og.renderPng(og.tripSvg(t.trip, siteHost)));
   }
   writeFileSync(join(DIST, "og", "default.png"), await og.renderPng(og.homeSvg(overview.stats)));
   ogOk = true;
