@@ -177,7 +177,6 @@
     setupStations();
     setupHeader();
     resetFeed();
-    setupArchive();
     wireControls();
   }
 
@@ -409,9 +408,6 @@
       $("diary").scrollTop = 0;
     };
     $("shareBtn").onclick = openShareSheet;
-    $("archiveBtn").onclick = () => $("archiveSheet").classList.remove("hidden");
-    $("archiveClose").onclick = () => $("archiveSheet").classList.add("hidden");
-    $("archiveSheet").onclick = (e) => { if (e.target.id === "archiveSheet") $("archiveSheet").classList.add("hidden"); };
   }
 
   function shareTarget() {
@@ -447,24 +443,6 @@
     _toastTimer = setTimeout(() => el.classList.add("hidden"), 2200);
   }
 
-  // ---- アーカイブ (連載一覧) ----
-  async function setupArchive() {
-    let idx = [];
-    try { idx = await (await fetch("/trips/index.json")).json(); } catch { /* ignore */ }
-    const ul = $("archiveList");
-    ul.innerHTML = "";
-    for (const it of idx) {
-      const li = document.createElement("li");
-      const cur = it.date === trip.date ? " current" : "";
-      li.innerHTML =
-        `<a href="/trips/${it.date}" class="acard${cur}">` +
-        `<span class="a-date">${it.date}</span>` +
-        `<span class="a-emoji">${it.persona ? it.persona.emoji : "🚃"}</span>` +
-        `<span><span class="a-line">${it.line || ""}</span> ` +
-        `<span class="a-co">${it.company || ""}</span></span></a>`;
-      ul.appendChild(li);
-    }
-  }
 
   // ---- 路線ピッカー + オンデマンド生成 ----
   // 常時ある UI (ピッカー・生成オーバーレイ) を一度だけ配線する。

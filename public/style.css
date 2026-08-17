@@ -85,12 +85,7 @@ footer#credit { font-size: 10px; color: #a49; opacity: .55; color: #9a948b; padd
 }
 .tile-toggle button.on { background: var(--ink); color: #fff; }
 
-/* アーカイブシート */
-#archiveSheet {
-  position: fixed; inset: 0; background: rgba(0,0,0,.4);
-  display: flex; align-items: center; justify-content: center; z-index: 2000;
-}
-#archiveSheet.hidden { display: none; }
+/* シート共通 (路線ピッカー / 共有) */
 .sheet-inner {
   background: var(--paper); border-radius: 12px; width: min(420px, 90vw);
   max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;
@@ -100,18 +95,6 @@ footer#credit { font-size: 10px; color: #a49; opacity: .55; color: #9a948b; padd
   padding: 14px 18px; background: var(--ink); color: #fff; font-weight: bold;
 }
 .sheet-head button.icon { color: #fff; }
-#archiveList { list-style: none; overflow-y: auto; padding: 8px; }
-#archiveList li { }
-#archiveList a {
-  display: flex; gap: 10px; align-items: baseline; text-decoration: none; color: var(--ink);
-  padding: 10px 12px; border-radius: 8px;
-}
-#archiveList a:hover { background: #e9e4dc; }
-#archiveList a.current { background: #e0d8cc; }
-#archiveList .a-date { font-size: 12px; color: #999; flex: 0 0 auto; width: 84px; }
-#archiveList .a-emoji { flex: 0 0 auto; }
-#archiveList .a-line { font-weight: bold; font-size: 14px; }
-#archiveList .a-co { font-size: 11px; color: var(--muted); }
 
 .hidden { display: none !important; }
 .headbtns { display: flex; gap: 2px; flex: 0 0 auto; align-items: center; }
