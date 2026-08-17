@@ -87,9 +87,9 @@
     }
 
     $("homeStats").innerHTML =
-      `<div class="stat"><div class="num">${ov.stats.trips}</div><div class="lbl">便</div></div>` +
-      `<div class="stat"><div class="num">${ov.stats.lines}</div><div class="lbl">路線</div></div>` +
-      `<div class="stat"><div class="num">${Math.round(ov.stats.km)}</div><div class="lbl">累計km</div></div>` +
+      `<div class="stat"><div class="num">${ov.stats.trips}<small>本</small></div><div class="lbl">旅の記録</div></div>` +
+      `<div class="stat"><div class="num">${ov.stats.lines}<small>路線</small></div><div class="lbl">踏破した路線</div></div>` +
+      `<div class="stat"><div class="num">${Math.round(ov.stats.km)}<small>km</small></div><div class="lbl">累計の距離</div></div>` +
       `<div class="cov">日本の鉄道 約610路線を、分身が少しずつ旅していきます</div>`;
 
     const t0 = ov.trips[0];

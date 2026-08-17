@@ -155,6 +155,7 @@ a.cta:hover { background: #d9536b; }
 }
 #homeStats .stat { flex: 1; text-align: center; min-width: 72px; }
 #homeStats .num { font-size: 26px; font-weight: bold; color: var(--ink); line-height: 1.1; }
+#homeStats .num small { font-size: 13px; font-weight: bold; margin-left: 2px; color: var(--muted); }
 #homeStats .lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
 #homeStats .cov { flex-basis: 100%; text-align: center; font-size: 11px; color: #a49f95; margin-top: 6px; }
 #homeMap {
