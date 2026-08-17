@@ -14,7 +14,7 @@
     if (m) return { kind: "line", cd: Number(m[1]) };
     const q = new URLSearchParams(location.search).get("date");
     if (q) return { kind: "date", date: q };
-    return { kind: "latest" };
+    return { kind: "home" };
   }
 
   // ---- ジオメトリ (参照実装と同じ) ----
@@ -35,13 +35,76 @@
     initChrome();
     const route = parseRoute();
     try {
-      if (route.kind === "date") await loadStatic(`/trips/${route.date}.json`);
-      else if (route.kind === "line") await loadLine(route.cd);
-      else await loadLatest();
+      if (route.kind === "home") { showView("home"); await renderHome(); }
+      else if (route.kind === "date") { showView("trip"); await loadStatic(`/trips/${route.date}.json`); }
+      else if (route.kind === "line") { showView("trip"); await loadLine(route.cd); }
     } catch {
       $("loading").classList.remove("hidden");
-      $("loading").textContent = "この便は見つかりませんでした。";
+      $("loading").textContent = "読み込みに失敗しました。";
     }
+  }
+
+  // トップ (全国マップ) と 個別ビューア を切り替える
+  function showView(which) {
+    $("homeView").classList.toggle("hidden", which !== "home");
+    $("app").classList.toggle("hidden", which !== "trip");
+  }
+
+  // ---- トップ: 日本全国カバレッジマップ ----
+  async function renderHome() {
+    document.title = "分身の旅日記 — 日本全国の旅";
+    let ov;
+    try { ov = await fetchJson("/trips/overview.json"); }
+    catch { ov = { stats: { trips: 0, lines: 0, km: 0 }, trips: [] }; }
+
+    const hmap = L.map("homeMap", { zoomControl: true });
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors (ODbL) / 駅位置: 駅データ.jp", maxZoom: 18,
+    }).addTo(hmap);
+
+    const layers = [];
+    for (const t of ov.trips) {
+      if (!t.track || t.track.length < 2) continue;
+      const pl = L.polyline(t.track, { color: "#e8657c", weight: 3, opacity: 0.85 }).addTo(hmap);
+      const emoji = t.persona ? t.persona.emoji : "🚃";
+      pl.bindTooltip(`<span class="home-line-tip">${emoji} <b>${t.line.name}</b><br>${t.date}</span>`, { sticky: true });
+      const go = () => { location.href = t.url; };
+      pl.on("click", go);
+      layers.push(pl);
+    }
+    if (layers.length) {
+      const grp = L.featureGroup(layers);
+      hmap.fitBounds(grp.getBounds(), { padding: [30, 30] });
+      requestAnimationFrame(() => { hmap.invalidateSize(); hmap.fitBounds(grp.getBounds(), { padding: [30, 30] }); });
+    } else {
+      hmap.setView([37.5, 137.5], 5); // 日本全体
+    }
+
+    $("homeStats").innerHTML =
+      `<div class="stat"><div class="num">${ov.stats.trips}</div><div class="lbl">便</div></div>` +
+      `<div class="stat"><div class="num">${ov.stats.lines}</div><div class="lbl">路線</div></div>` +
+      `<div class="stat"><div class="num">${Math.round(ov.stats.km)}</div><div class="lbl">累計km</div></div>` +
+      `<div class="cov">日本の鉄道 約610路線を、分身が少しずつ旅していきます</div>`;
+
+    if (ov.trips.length) $("todayBtn").href = ov.trips[0].url;
+    else $("todayBtn").classList.add("hidden");
+
+    const ul = $("homeList");
+    ul.innerHTML = "";
+    for (const t of ov.trips) {
+      const li = document.createElement("li");
+      li.innerHTML =
+        `<a href="${t.url}"><span class="h-date">${t.date}</span>` +
+        `<span class="h-emoji">${t.persona ? t.persona.emoji : "🚃"}</span>` +
+        `<span><span class="h-line">${t.line.name}</span> <span class="h-co">${t.line.company}</span></span></a>`;
+      ul.appendChild(li);
+    }
+    $("homeCredit").textContent = "駅位置: 駅データ.jp / 線形: © OpenStreetMap contributors (ODbL)";
+
+    if (canGenerate) $("homePickBtn").classList.remove("hidden");
+    $("homePickBtn").onclick = openPicker;
+
+    $("loading").classList.add("hidden");
   }
 
   // データは静的ファイル (trips/*.json) を直読み。ローカル Node でも静的ホストでも同じパス。
@@ -54,11 +117,6 @@
     const data = await fetchJson(url);
     setTrip(data.trip || data);
     $("loading").classList.add("hidden");
-  }
-  async function loadLatest() {
-    const idx = await fetchJson("/trips/index.json");
-    if (!idx.length) throw new Error("no trips");
-    await loadStatic(`/trips/${idx[0].date}.json`);
   }
   async function loadLine(cd) {
     try {

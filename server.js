@@ -19,7 +19,7 @@ import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import { dirname, join, normalize, extname } from "node:path";
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { loadTrip, loadIndex, latestDate, loadLineTrip } from "./lib/trips-store.js";
+import { loadTrip, loadIndex, latestDate, loadLineTrip, buildOverview } from "./lib/trips-store.js";
 import { listLines } from "./lib/stations.js";
 import { generateTrip } from "./scripts/generate-trip.js";
 import { hasApiKey, apiKeyEnvName, activeProvider } from "./lib/diary.js";
@@ -73,16 +73,9 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const path = decodeURIComponent(url.pathname);
 
-  // --- ルート: 最新便へ ---
+  // --- ルート: トップ (全国カバレッジマップ)。ビューア側が overview を読む ---
   if (path === "/") {
-    const latest = latestDate();
-    if (latest) {
-      res.writeHead(302, { location: `/trips/${latest}` });
-      res.end();
-    } else {
-      serveIndex(res); // 便が無ければ空のシェル (JS 側でメッセージ)
-    }
-    return;
+    return serveIndex(res);
   }
 
   // --- API ---
@@ -103,6 +96,11 @@ const server = createServer(async (req, res) => {
   // --- このサーバが生成バックエンドを持つか (ビューアが 🚃 を出すか判定する) ---
   if (path === "/api/capabilities") {
     return sendJson(res, 200, { generate: true, provider: activeProvider(), hasKey: hasApiKey() });
+  }
+
+  // --- 全国カバレッジ (トップ) 用データ。実ファイルは無いので都度生成 ---
+  if (path === "/trips/overview.json") {
+    return sendJson(res, 200, buildOverview());
   }
 
   // --- trips/ 配下の JSON を配信 (静的ホストと同じパスでビューアを動かすため) ---

@@ -17,13 +17,35 @@
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<div id="app">
+<!-- トップ: 日本全国カバレッジマップ -->
+<div id="homeView" class="hidden">
+  <div id="homeMap"></div>
+  <div id="homePanel">
+    <header>
+      <div class="titlerow">
+        <h1>🚃 分身の旅日記</h1>
+        <span class="headbtns">
+          <button id="homePickBtn" class="icon hidden" title="路線を選んで旅する">🚃</button>
+        </span>
+      </div>
+      <div class="sub">分身が日本の鉄道を旅した記録。毎朝1本、新しい路線へ。</div>
+    </header>
+    <div id="homeStats"></div>
+    <a id="todayBtn" href="/" class="cta">▶ 今朝の便を読む</a>
+    <div id="homeListWrap"><ul id="homeList"></ul></div>
+    <footer id="homeCredit"></footer>
+  </div>
+</div>
+
+<!-- 個別の旅ビューア -->
+<div id="app" class="hidden">
   <div id="map"></div>
   <div id="panel">
     <header>
       <div class="titlerow">
         <h1 id="title">分身の旅日記</h1>
         <span class="headbtns">
+          <a id="homeBtn" href="/" class="icon" title="全国マップ">🗺️</a>
           <button id="pickBtn" class="icon hidden" title="路線を選んで旅する">🚃</button>
           <button id="archiveBtn" class="icon" title="ほかの便">📚</button>
         </span>

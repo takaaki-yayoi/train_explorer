@@ -14,7 +14,8 @@
 
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { rmSync, mkdirSync, cpSync, existsSync } from "node:fs";
+import { rmSync, mkdirSync, cpSync, existsSync, writeFileSync } from "node:fs";
+import { buildOverview } from "../lib/trips-store.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
@@ -32,6 +33,10 @@ const TRIPS = join(ROOT, "trips");
 if (existsSync(TRIPS)) {
   cpSync(TRIPS, join(DIST, "trips"), { recursive: true });
 }
+
+// 3) トップの全国カバレッジマップ用データを生成
+mkdirSync(join(DIST, "trips"), { recursive: true });
+writeFileSync(join(DIST, "trips", "overview.json"), JSON.stringify(buildOverview()));
 
 // SPA ルーティングは wrangler.jsonc (Cloudflare) 側で設定する。
 // Netlify を使う場合はここで dist/_redirects に `/*  /index.html  200` を書けばよいが、
