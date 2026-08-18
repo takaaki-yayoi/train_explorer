@@ -187,6 +187,9 @@ a.cta:hover { background: #d9536b; }
 }
 .site-footer > div { max-width: 760px; margin-left: auto; margin-right: auto; }
 .foot-about { font-size: 13px; line-height: 1.95; color: #e7e2d8; }
+.foot-links { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px 22px; font-size: 13px; }
+.foot-links a { color: #e7e2d8; text-decoration: none; border-bottom: 1px solid rgba(231,226,216,.4); padding-bottom: 2px; }
+.foot-links a:hover { color: #fff; border-bottom-color: #fff; }
 .foot-credit { margin-top: 16px; font-size: 11px; opacity: .72; line-height: 1.8; }
 .foot-credit a { color: inherit; text-decoration: underline; }
 .foot-copy { margin-top: 14px; font-size: 11px; opacity: .5; }
