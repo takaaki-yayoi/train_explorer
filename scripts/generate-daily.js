@@ -10,7 +10,7 @@
 import { listLines, getLine } from "../lib/stations.js";
 import { pickPersonaForDate } from "../lib/personas.js";
 import { generateTrip } from "./generate-trip.js";
-import { loadTrip } from "../lib/trips-store.js";
+import { loadTrip, allTrips } from "../lib/trips-store.js";
 
 function arg(name, def = null) {
   const i = process.argv.indexOf(`--${name}`);
@@ -34,14 +34,48 @@ if (!force && loadTrip(date)) {
   process.exit(0);
 }
 
-// 路線選定: 環状線判定と、旅として成立しやすい規模 (5〜30駅程度) を優先
+// 日付から候補列のどこを見に行くかを決める。
+// 素の日付 (20260819) をそのまま剰余すると、1日進む = インデックスが1つ進む になる。
+// 候補列は line_cd 昇順 = 事業者・地域ごとの固まりなので、これだと同じ地方が延々と続く
+// (実測: 30日で3地方しか回らず、近畿が13日連続)。
+// FNVハッシュを通すだけでも足りない。最後の掛け算の 16777619 % 候補数 がそのまま歩幅になり、
+// 1日進む = 2つ進む に変わるだけ。murmur3 の最終撹拌まで入れて初めて日付が散る。
+function hashDate(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  h ^= h >>> 16; h = Math.imul(h, 2246822507);
+  h ^= h >>> 13; h = Math.imul(h, 3266489909);
+  h ^= h >>> 16;
+  return h >>> 0;
+}
+
+// これまでに旅した路線 (連載の便 + 路線指定の便)
+function visitedLines() {
+  const set = new Set();
+  for (const { trip } of allTrips()) {
+    const cd = trip && trip.line && trip.line.line_cd;
+    if (cd) set.add(Number(cd));
+  }
+  return set;
+}
+
+// 路線選定: 旅として成立しやすい規模 (5〜30駅程度) の中から、日付シードで決定的に選ぶ。
+// 未踏の路線を優先する (撹拌だけだと1年で134回も既訪問路線に当たる)。
 function pickLine() {
   if (explicitLine) return explicitLine;
   const candidates = listLines().filter((l) => l.stationCount >= 5 && l.stationCount <= 30);
   const pool = candidates.length ? candidates : listLines();
-  // 日付シードで決定的に選ぶ (再現性)
-  const seed = Number(date.replace(/-/g, "")) || 0;
-  return pool[seed % pool.length].line_cd;
+  const visited = visitedLines();
+  const start = hashDate(date) % pool.length;
+  for (let n = 0; n < pool.length; n++) {
+    const l = pool[(start + n) % pool.length];
+    if (!visited.has(l.line_cd)) {
+      if (n) console.error(`未踏優先: ${n}本ずらしました (${n}本が訪問済み)`);
+      return l.line_cd;
+    }
+  }
+  console.error(`候補 ${pool.length}本をすべて旅し終えました。2巡目に入ります。`);
+  return pool[start].line_cd;
 }
 
 const lineCd = pickLine();

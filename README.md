@@ -47,7 +47,7 @@ server.js      依存ゼロの静的配信 + trip API
 ```
 
 ```bash
-# 翌朝の便を生成 (路線を日付シードで決定的に選定、キャラをローテーション)
+# 翌朝の便を生成 (路線は日付シードで決定的に選定 + 未踏優先、キャラをローテーション)
 OPENAI_API_KEY=sk-... node scripts/generate-daily.js
 
 # cron 例: 毎晩3時に翌日分
