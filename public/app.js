@@ -66,25 +66,31 @@
       attribution: "&copy; OpenStreetMap contributors (ODbL) / 駅位置: 駅データ.jp", maxZoom: 18,
     }).addTo(hmap);
 
-    const layers = [];
+    const layers = [], live = [];
     for (const t of ov.trips) {
       if (!t.track || t.track.length < 2) continue;
-      // 白いケーシング(ふち)を敷いてから濃い紫の本線 → OSMの赤系(道路/鉄道)と紛れず、
+      // 白いケーシング(ふち)を敷いてから紫の本線 → OSMの赤系(道路/鉄道)と紛れず、
       // 明るい土地でも暗い地物の上でも浮いて見える。
+      // 本線は薄く敷いておき、分身が通った区間だけを濃い線で上書きする (尾を引く)。
       L.polyline(t.track, { color: "#ffffff", weight: 6, opacity: 0.9 }).addTo(hmap);
-      const pl = L.polyline(t.track, { color: "#6d28d9", weight: 3.5, opacity: 1 }).addTo(hmap);
+      const pl = L.polyline(t.track, { color: "#6d28d9", weight: 3.5, opacity: 0.32 }).addTo(hmap);
+      const trail = L.polyline([], { color: "#6d28d9", weight: 3.5, opacity: 1 }).addTo(hmap);
       const emoji = t.persona ? t.persona.emoji : "🚃";
       pl.bindTooltip(`<span class="home-line-tip">${emoji} <b>${t.line.name}</b><br>${t.date}</span>`, { sticky: true });
       pl.on("click", () => { location.href = t.url; });
       layers.push(pl);
+      live.push({ t, trail, emoji });
     }
+    let bounds = null;
     if (layers.length) {
-      const grp = L.featureGroup(layers);
-      hmap.fitBounds(grp.getBounds(), { padding: [30, 30] });
-      requestAnimationFrame(() => { hmap.invalidateSize(); hmap.fitBounds(grp.getBounds(), { padding: [30, 30] }); });
+      bounds = L.featureGroup(layers).getBounds();
+      hmap.fitBounds(bounds, { padding: [30, 30] });
+      requestAnimationFrame(() => { hmap.invalidateSize(); hmap.fitBounds(bounds, { padding: [30, 30] }); });
     } else {
       hmap.setView([37.5, 137.5], 5); // 日本全体
     }
+    startHomeLive(hmap, live);
+    setupHomeFullscreen(hmap, bounds);
 
     $("homeStats").innerHTML =
       `<div class="stat"><div class="num">${ov.stats.trips}<small>本</small></div><div class="lbl">旅の記録</div></div>` +
@@ -119,6 +125,180 @@
     $("homePickBtn").onclick = openPicker;
 
     $("loading").classList.add("hidden");
+  }
+
+  // ---- トップの全国マップを"生きている"状態にする ----
+  // 厳密なリアルタイムではなく仮想ダイヤ。壁時計を CYCLE 秒で割った位相から位置を決めるので、
+  // サーバに状態を持たなくても「誰がいつ開いても同じ絵」「開くたびに違う場所にいる」が両立する。
+  const LIVE = {
+    CYCLE: 300,  // 1周 = 5分。全便がこの周期のなかを往復する。
+                 // 長くすると国スケールでは動きが見えなくなる (40kmの路線は全国表示で10px弱しかない)
+    RUN: 0.44,   // 片道にかける割合。残り (0.5 - RUN) は終点/始点での小休止
+    MAX: 40,     // 同時に動かす分身の上限。超えた便は線だけ (DOMマーカーが増えると重くなる)
+    GAP: 90,     // 吹き出し同士の最小間隔 (px)
+    BUBBLES: 2,  // 同時に出す吹き出しの数
+    BOB: 2.6,    // 待機中の揺れの周期(秒)。style.css の avatar-bob と揃える
+  };
+
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const clip = (s, n) => (s.length > n ? s.slice(0, n) + "…" : s);
+  const easeInOut = (u) => (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2);
+
+  // 位相(0..1) → 進捗(0..1)。往復させるので、周回の切れ目で始点に瞬間移動しない。
+  // 終点で止まっている間 (rest) に、その便の日記の一節を吹き出しで出す。
+  function shuttle(phase) {
+    const r = LIVE.RUN;
+    if (phase < r) return { u: easeInOut(phase / r), rest: false };
+    if (phase < 0.5) return { u: 1, rest: true };
+    if (phase < 0.5 + r) return { u: easeInOut(1 - (phase - 0.5) / r), rest: false };
+    return { u: 0, rest: false };
+  }
+
+  // 便ごとの発車位相。等間隔だと機械的に見えるので、日付+路線から決定的に少し揺らす。
+  function phaseOffset(t, i, n) {
+    const key = `${t.date}/${t.line.line_cd}`;
+    let h = 2166136261;
+    for (let k = 0; k < key.length; k++) { h ^= key.charCodeAt(k); h = Math.imul(h, 16777619); }
+    return (i / n + ((h >>> 0) / 4294967296) * (0.8 / n)) % 1;
+  }
+
+  // 弧長テーブルと弧長→座標の補間 (個別ビューアの cum / latLngAt をトップ用に切り出したもの)
+  function arcTable(track) {
+    const cum = [0];
+    for (let i = 1; i < track.length; i++) cum[i] = cum[i - 1] + havP(track[i - 1], track[i]);
+    return cum;
+  }
+  function arcPoint(track, cum, s) {
+    s = Math.max(0, Math.min(cum[cum.length - 1], s));
+    let lo = 0, hi = track.length - 1;
+    while (lo < hi - 1) { const m = (lo + hi) >> 1; if (cum[m] <= s) lo = m; else hi = m; }
+    const seg = cum[hi] - cum[lo] || 1e-12, u = (s - cum[lo]) / seg;
+    return [track[lo][0] + (track[hi][0] - track[lo][0]) * u, track[lo][1] + (track[hi][1] - track[lo][1]) * u];
+  }
+  // 始点から現在地までの経路 (尾)
+  function arcUpTo(track, cum, s, here) {
+    const out = [];
+    for (let i = 0; i < track.length && cum[i] <= s; i++) out.push(track[i]);
+    out.push(here);
+    return out;
+  }
+
+  function startHomeLive(hmap, live) {
+    if (!live.length) return;
+    const movers = live.slice(0, LIVE.MAX);
+    const n = movers.length;
+
+    for (let i = 0; i < n; i++) {
+      const m = movers[i];
+      m.cum = arcTable(m.t.track);
+      m.total = m.cum[m.cum.length - 1];
+      m.off = phaseOffset(m.t, i, n);
+      m.shown = false;
+      const who = m.t.persona ? `${m.t.persona.name} — ` : "";
+      m.marker = L.marker(m.t.track[0], {
+        icon: L.divIcon({
+          html: `<div title="${esc(who + m.t.line.name)}">${m.emoji}</div>`,
+          className: "home-avatar", iconSize: [26, 26], iconAnchor: [13, 13],
+        }),
+        zIndexOffset: 1000, keyboard: false,
+      }).addTo(hmap);
+      m.marker.on("click", () => { location.href = m.t.url; });
+      // 待機中の揺れが全員そろうと不自然なので、発車位相ぶんだけずらす
+      const bob = m.marker.getElement() && m.marker.getElement().firstChild;
+      if (bob) bob.style.animationDelay = `${-(m.off * LIVE.BOB).toFixed(2)}s`;
+      if (m.t.teaser) {
+        m.bubble = L.tooltip({
+          permanent: true, direction: "top", offset: [0, -15],
+          className: "home-bubble", interactive: false,
+        }).setContent(`${m.emoji}「${esc(clip(m.t.teaser, 30))}」`);
+      }
+    }
+
+    // 引いているときは絵文字を小さく (国スケールで団子にならないように)
+    const zoomClass = () => hmap.getContainer().classList.toggle("z-far", hmap.getZoom() < 8);
+    hmap.on("zoomend", zoomClass);
+    zoomClass();
+
+    // 動きを減らす設定なら、走破済みの静止画にして以降は何もしない。
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      for (const m of movers) {
+        m.trail.setLatLngs(m.t.track);
+        m.marker.setLatLng(m.t.track[m.t.track.length - 1]);
+      }
+      return;
+    }
+
+    function frame() {
+      const now = Date.now() / 1000;
+      for (const m of movers) {
+        const phase = ((now / LIVE.CYCLE + m.off) % 1 + 1) % 1;
+        const st = shuttle(phase);
+        m.pt = arcPoint(m.t.track, m.cum, st.u * m.total);
+        m.rest = st.rest;
+        m.marker.setLatLng(m.pt);
+        m.trail.setLatLngs(arcUpTo(m.t.track, m.cum, st.u * m.total, m.pt));
+      }
+      // 吹き出しは重なると読めないので、間隔をあけて数を絞る。
+      // 既に出ているものを先に処理して、点滅しないようにする。
+      const open = [];
+      for (const pass of [1, 2]) {
+        for (const m of movers) {
+          if (!m.bubble) continue;
+          if (pass === 1 ? !m.shown : m.shown) continue;
+          if (m.rest && open.length < LIVE.BUBBLES) {
+            const cp = hmap.latLngToContainerPoint(m.pt);
+            if (open.every((p) => p.distanceTo(cp) > LIVE.GAP)) {
+              m.bubble.setLatLng(m.pt);
+              if (!m.shown) { m.bubble.addTo(hmap); m.shown = true; }
+              open.push(cp);
+              continue;
+            }
+          }
+          if (m.shown) { hmap.removeLayer(m.bubble); m.shown = false; }
+        }
+      }
+    }
+
+    // 地図が画面に入っていて、タブも見えている間だけ動かす。
+    // (トップの主役は「今朝の便を読む」なので、ヒーローを見ている間は静かにしておく)
+    let raf = null, visible = false, awake = !document.hidden;
+    const tick = () => { frame(); raf = requestAnimationFrame(tick); };
+    const sync = () => {
+      const on = visible && awake;
+      if (on && raf === null) raf = requestAnimationFrame(tick);
+      else if (!on && raf !== null) { cancelAnimationFrame(raf); raf = null; }
+    };
+    frame(); // 初期位置は最初から時計に合わせておく
+    document.addEventListener("visibilitychange", () => { awake = !document.hidden; sync(); });
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(
+        (es) => { visible = es[0].isIntersecting; sync(); },
+        { threshold: 0.15 }
+      ).observe($("homeMap"));
+    } else { visible = true; sync(); }
+  }
+
+  // 全画面表示。専用ページではなく同じ地図を広げるだけなので、データもルートも増えない。
+  function setupHomeFullscreen(hmap, bounds) {
+    const sec = $("coverage"), btn = $("mapFullBtn");
+    if (!sec || !btn) return;
+    const set = (on) => {
+      sec.classList.toggle("is-full", on);
+      btn.setAttribute("aria-pressed", String(on));
+      btn.textContent = on ? "✕ 閉じる" : "⤢ 全画面で見る";
+      // 器の大きさが変わるので、地図の再計測と日本全体への再フィットをやり直す
+      const refit = () => {
+        hmap.invalidateSize();
+        if (bounds) hmap.fitBounds(bounds, { padding: [30, 30] });
+      };
+      refit();
+      setTimeout(refit, 250);
+    };
+    btn.addEventListener("click", () => set(!sec.classList.contains("is-full")));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && sec.classList.contains("is-full")) set(false);
+    });
   }
 
   // データは静的ファイル (trips/*.json) を直読み。ローカル Node でも静的ホストでも同じパス。
