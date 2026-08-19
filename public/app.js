@@ -133,9 +133,11 @@
   const LIVE = {
     CYCLE: 300,  // 1周 = 5分。全便がこの周期のなかを往復する。
                  // 長くすると国スケールでは動きが見えなくなる (40kmの路線は全国表示で10px弱しかない)
-    RUN: 0.44,   // 片道にかける割合。残り (0.5 - RUN) は終点/始点での小休止
+    RUN: 0.40,   // 片道にかける割合。残り (0.5 - RUN) は終点/始点での小休止 (= 吹き出しを出す時間)
     MAX: 40,     // 同時に動かす分身の上限。超えた便は線だけ (DOMマーカーが増えると重くなる)
-    GAP: 90,     // 吹き出し同士の最小間隔 (px)
+    GAP_X: 205,  // 吹き出し同士の最小間隔 (px)。吹き出しの幅(最大200px)より広くとる
+    GAP_Y: 62,   // 上下にずれていれば横が近くても重ならない
+    FLIP: 78,    // 地図の上端からこの距離より近い分身は、吹き出しを下向きに出す
     BUBBLES: 2,  // 同時に出す吹き出しの数
     BOB: 2.6,    // 待機中の揺れの周期(秒)。style.css の avatar-bob と揃える
   };
@@ -146,13 +148,14 @@
   const easeInOut = (u) => (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2);
 
   // 位相(0..1) → 進捗(0..1)。往復させるので、周回の切れ目で始点に瞬間移動しない。
-  // 終点で止まっている間 (rest) に、その便の日記の一節を吹き出しで出す。
+  // 折り返しで止まっている間 (rest) に、その便の日記の一節を吹き出しで出す。
+  // 終点だけだと全便あわせても喋っていない時間が6割を占めるので、始点でも喋らせる。
   function shuttle(phase) {
     const r = LIVE.RUN;
     if (phase < r) return { u: easeInOut(phase / r), rest: false };
-    if (phase < 0.5) return { u: 1, rest: true };
+    if (phase < 0.5) return { u: 1, rest: true };            // 終点で一息
     if (phase < 0.5 + r) return { u: easeInOut(1 - (phase - 0.5) / r), rest: false };
-    return { u: 0, rest: false };
+    return { u: 0, rest: true };                             // 始点に戻ってまた一息
   }
 
   // 便ごとの発車位相。等間隔だと機械的に見えるので、日付+路線から決定的に少し揺らす。
@@ -248,7 +251,14 @@
           if (pass === 1 ? !m.shown : m.shown) continue;
           if (m.rest && open.length < LIVE.BUBBLES) {
             const cp = hmap.latLngToContainerPoint(m.pt);
-            if (open.every((p) => p.distanceTo(cp) > LIVE.GAP)) {
+            // 吹き出しは分身の真上に出る横長の矩形なので、距離ではなく重なりで判定する
+            const clear = open.every((p) =>
+              Math.abs(p.x - cp.x) > LIVE.GAP_X || Math.abs(p.y - cp.y) > LIVE.GAP_Y);
+            if (clear) {
+              // 地図の上端に近いと吹き出しが枠で切れるので、その便だけ下向きに出す
+              const down = cp.y < LIVE.FLIP;
+              m.bubble.options.direction = down ? "bottom" : "top";
+              m.bubble.options.offset = down ? [0, 15] : [0, -15];
               m.bubble.setLatLng(m.pt);
               if (!m.shown) { m.bubble.addTo(hmap); m.shown = true; }
               open.push(cp);

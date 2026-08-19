@@ -196,6 +196,7 @@ a.cta:hover { background: #d9536b; }
   animation: bubble-in .32s ease-out;
 }
 .leaflet-tooltip.home-bubble::before { border-top-color: #fff; }
+.leaflet-tooltip-bottom.home-bubble::before { border-bottom-color: #fff; }
 @keyframes bubble-in {
   from { opacity: 0; transform: translateY(5px) scale(.94); }
   to { opacity: 1; transform: none; }
