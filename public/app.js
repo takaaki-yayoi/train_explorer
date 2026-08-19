@@ -136,8 +136,9 @@
     RUN: 0.40,   // 片道にかける割合。残り (0.5 - RUN) は終点/始点での小休止 (= 吹き出しを出す時間)
     MAX: 40,     // 同時に動かす分身の上限。超えた便は線だけ (DOMマーカーが増えると重くなる)
     GAP_X: 205,  // 吹き出し同士の最小間隔 (px)。吹き出しの幅(最大200px)より広くとる
-    GAP_Y: 62,   // 上下にずれていれば横が近くても重ならない
-    FLIP: 78,    // 地図の上端からこの距離より近い分身は、吹き出しを下向きに出す
+    GAP_Y: 100,  // 上下にずれていれば横が近くても重ならない (45字は実測で高さ90px)
+    FLIP: 110,   // 地図の上端からこの距離より近い分身は、吹き出しを下向きに出す (高さ90px + 余白)
+    CHARS: 45,   // 吹き出しに載せる字数。30字だと一節の面白い後半が毎回落ちていた
     BUBBLES: 2,  // 同時に出す吹き出しの数
     BOB: 2.6,    // 待機中の揺れの周期(秒)。style.css の avatar-bob と揃える
   };
@@ -150,12 +151,13 @@
   // 位相(0..1) → 進捗(0..1)。往復させるので、周回の切れ目で始点に瞬間移動しない。
   // 折り返しで止まっている間 (rest) に、その便の日記の一節を吹き出しで出す。
   // 終点だけだと全便あわせても喋っていない時間が6割を占めるので、始点でも喋らせる。
+  // rest はどちら側で止まっているかを返す。居る場所と喋る内容を合わせるため。
   function shuttle(phase) {
     const r = LIVE.RUN;
-    if (phase < r) return { u: easeInOut(phase / r), rest: false };
-    if (phase < 0.5) return { u: 1, rest: true };            // 終点で一息
-    if (phase < 0.5 + r) return { u: easeInOut(1 - (phase - 0.5) / r), rest: false };
-    return { u: 0, rest: true };                             // 始点に戻ってまた一息
+    if (phase < r) return { u: easeInOut(phase / r), rest: null };
+    if (phase < 0.5) return { u: 1, rest: "end" };            // 終点で一息
+    if (phase < 0.5 + r) return { u: easeInOut(1 - (phase - 0.5) / r), rest: null };
+    return { u: 0, rest: "start" };                           // 始点に戻ってまた一息
   }
 
   // 便ごとの発車位相。等間隔だと機械的に見えるので、日付+路線から決定的に少し揺らす。
@@ -210,11 +212,18 @@
       // 待機中の揺れが全員そろうと不自然なので、発車位相ぶんだけずらす
       const bob = m.marker.getElement() && m.marker.getElement().firstChild;
       if (bob) bob.style.animationDelay = `${-(m.off * LIVE.BOB).toFixed(2)}s`;
-      if (m.t.teaser) {
+      // 始点では出発の一節、終点では終着の一節。日記の1件目は必ず「出発点の紹介」なので、
+      // 終点にいるのに出発の話をしていると噛み合わない。
+      const say = (t) => (t ? `${m.emoji}「${esc(clip(t, LIVE.CHARS))}」` : null);
+      const start = say(m.t.teaser), end = say(m.t.teaserEnd);
+      if (start || end) {
+        // 片方しか持たない overview (旧データ) は、両端で同じ一節を出す
+        m.says = { start: start || end, end: end || start };
+        m.side = null;
         m.bubble = L.tooltip({
           permanent: true, direction: "top", offset: [0, -15],
           className: "home-bubble", interactive: false,
-        }).setContent(`${m.emoji}「${esc(clip(m.t.teaser, 30))}」`);
+        });
       }
     }
 
@@ -259,6 +268,7 @@
               const down = cp.y < LIVE.FLIP;
               m.bubble.options.direction = down ? "bottom" : "top";
               m.bubble.options.offset = down ? [0, 15] : [0, -15];
+              if (m.side !== m.rest) { m.bubble.setContent(m.says[m.rest]); m.side = m.rest; }
               m.bubble.setLatLng(m.pt);
               if (!m.shown) { m.bubble.addTo(hmap); m.shown = true; }
               open.push(cp);
