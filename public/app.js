@@ -559,7 +559,10 @@
       const card = makeCard(e, i);
       $("diary").appendChild(card);
       requestAnimationFrame(() => card.classList.add("shown"));
-      card.scrollIntoView({ behavior: "smooth", block: "end" });
+      // scrollIntoView はスクロール可能な祖先をすべて動かすので、スマホでページごと
+      // 引っ張られる。新着カードは常に最下端なので、#diary の中だけを送る。
+      const feed = $("diary");
+      feed.scrollTo({ top: feed.scrollHeight, behavior: "smooth" });
       highlight(i);
       shownCount++;
       setTimeout(() => { if (playing) playNext(); }, e.type === "stop" ? 3200 : 1600);

@@ -16,12 +16,15 @@ body {
   color: var(--ink);
   overflow: hidden;
 }
-#app { display: flex; height: 100vh; }
+/* dvh = URLバーの出入りを含んだ実際の表示領域。iOS Safari で 100vh だと
+   バーのぶん下がはみ出し、ページごと引っ張れてしまう (dvh 非対応環境は vh に落ちる) */
+#app { display: flex; height: 100vh; height: 100dvh; }
 #map { flex: 1; min-width: 0; background: #dfe6ea; }
 
 #panel {
   width: 400px;
   max-width: 42vw;
+  min-height: 0;
   background: var(--paper);
   display: flex;
   flex-direction: column;
@@ -48,7 +51,9 @@ button.icon { flex: 0 0 auto; background: transparent; font-size: 16px; padding:
 header button.icon { color: #fff; }
 #controls button.icon { background: #efe9df; }
 
-#diary { flex: 1; overflow-y: auto; padding: 14px 20px 30px; -webkit-overflow-scrolling: touch; }
+/* min-height:0 が無いと、フレックス項目の既定 min-height:auto で中身の高さまで
+   伸びきってしまい、overflow-y:auto が働かない (パネルが #app の外へはみ出す) */
+#diary { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 20px 30px; -webkit-overflow-scrolling: touch; }
 .card {
   background: var(--card); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;
   box-shadow: 0 1px 3px rgba(0,0,0,.08); cursor: pointer;
@@ -116,7 +121,7 @@ header .backlink {
 header .backlink:hover { background: rgba(255,255,255,.22); color: #fff; }
 
 /* ===== トップ: 縦スクロールのランディング ===== */
-#homeView { display: block; height: 100vh; overflow-y: auto; background: var(--paper); }
+#homeView { display: block; height: 100vh; height: 100dvh; overflow-y: auto; background: var(--paper); }
 
 .site-header {
   position: sticky; top: 0; z-index: 500;
@@ -351,7 +356,9 @@ a.cta:hover { background: #d9536b; }
 /* モバイル: 縦積み (地図上 / 日記下) */
 @media (max-width: 720px) {
   #app { flex-direction: column; }
-  #map { flex: 0 0 42vh; }
+  /* スマホでは日記の表示領域が最優先。42vh だとカード1.6枚ぶんしか残らなかった */
+  #map { flex: 0 0 36vh; flex-basis: 36dvh; }
+  footer#credit { padding: 6px 16px 8px; font-size: 9.5px; line-height: 1.45; }
   #panel { width: 100%; max-width: none; flex: 1; border-left: none; border-top: 1px solid #ddd; }
   header { padding-top: max(14px, env(safe-area-inset-top)); }
 }
