@@ -53,7 +53,8 @@ header button.icon { color: #fff; }
 
 /* min-height:0 が無いと、フレックス項目の既定 min-height:auto で中身の高さまで
    伸びきってしまい、overflow-y:auto が働かない (パネルが #app の外へはみ出す) */
-#diary { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 20px 30px; -webkit-overflow-scrolling: touch; }
+#diary { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 20px 30px; -webkit-overflow-scrolling: touch;
+  position: relative; /* カードの offsetTop をこの欄基準にする (送り先の計算用) */ }
 .card {
   background: var(--card); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;
   box-shadow: 0 1px 3px rgba(0,0,0,.08); cursor: pointer;

@@ -560,9 +560,11 @@
       $("diary").appendChild(card);
       requestAnimationFrame(() => card.classList.add("shown"));
       // scrollIntoView はスクロール可能な祖先をすべて動かすので、スマホでページごと
-      // 引っ張られる。新着カードは常に最下端なので、#diary の中だけを送る。
+      // 引っ張られる。#diary の中だけを送る。
+      // 送り先は新着カードの「上端」。下端を基準にすると、カードが日記欄より高いとき
+      // (スマホで URL バーが出ていると欄が130px程度まで縮む) 見出しが上にはみ出す。
       const feed = $("diary");
-      feed.scrollTo({ top: feed.scrollHeight, behavior: "smooth" });
+      feed.scrollTo({ top: Math.max(0, card.offsetTop - 8), behavior: "smooth" });
       highlight(i);
       shownCount++;
       setTimeout(() => { if (playing) playNext(); }, e.type === "stop" ? 3200 : 1600);
