@@ -615,6 +615,9 @@
     $("shareBtn").onclick = openShareSheet;
   }
 
+  // X の共有に付けるハッシュタグ。# は付けず、増やすときはカンマ区切り。
+  const X_HASHTAGS = "分身の旅日記";
+
   function shareTarget() {
     return shareCtx || { url: location.origin + "/", text: "分身の旅日記 — 分身が日本の鉄道を旅する" };
   }
@@ -624,7 +627,7 @@
     const { url, text } = shareTarget();
     const u = encodeURIComponent(url), t = encodeURIComponent(text);
     let href = null;
-    if (net === "x") href = `https://twitter.com/intent/tweet?text=${t}&url=${u}`;
+    if (net === "x") href = `https://twitter.com/intent/tweet?text=${t}&url=${u}&hashtags=${encodeURIComponent(X_HASHTAGS)}`;
     else if (net === "line") href = `https://social-plugins.line.me/lineit/share?url=${u}`;
     else if (net === "fb") href = `https://www.facebook.com/sharer/sharer.php?u=${u}`;
     if (href) {
