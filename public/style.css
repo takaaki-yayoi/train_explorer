@@ -250,6 +250,13 @@ a.cta:hover { background: #d9536b; }
 #homeList .h-co { font-size: 11px; color: var(--muted); }
 .home-line-tip b { color: var(--ink); }
 
+.more-btn {
+  display: block; width: 100%; margin-top: 12px;
+  background: #fff; color: var(--ink); border: 1px solid #e0dad0; border-radius: 8px;
+  padding: 12px; font-size: 13px; cursor: pointer;
+}
+.more-btn:hover { background: #efe9e1; border-color: #d5cec2; }
+
 .site-footer {
   margin-top: 28px; background: var(--ink); color: #c9c2b6;
   padding: 30px 20px max(30px, env(safe-area-inset-bottom));

@@ -111,20 +111,41 @@
     if (t0) $("todayBtn").href = t0.url;
     else $("todayBtn").classList.add("hidden");
 
-    const ul = $("homeList");
-    ul.innerHTML = "";
-    for (const t of ov.trips) {
-      const li = document.createElement("li");
-      li.innerHTML =
-        `<a href="${t.url}"><span class="h-date">${t.date}</span>` +
-        `<span class="h-emoji">${t.persona ? t.persona.emoji : "🚃"}</span>` +
-        `<span><span class="h-line">${t.line.name}</span> <span class="h-co">${t.line.company}</span></span></a>`;
-      ul.appendChild(li);
-    }
+    renderSerialList(ov.trips);
     if (canGenerate) $("homePickBtn").classList.remove("hidden");
     $("homePickBtn").onclick = openPicker;
 
     $("loading").classList.add("hidden");
+  }
+
+  // ---- トップの連載一覧: 30便ずつ ----
+  // 全便を一度に描くと、1年で1460個のDOM要素になり「延々スクロールするだけのリスト」になる。
+  const SERIAL_PAGE = 30;
+
+  function renderSerialList(trips) {
+    const ul = $("homeList"), more = $("homeMoreBtn");
+    ul.innerHTML = "";
+    let shown = 0;
+
+    const addPage = () => {
+      const frag = document.createDocumentFragment();
+      for (const t of trips.slice(shown, shown + SERIAL_PAGE)) {
+        const li = document.createElement("li");
+        li.innerHTML =
+          `<a href="${t.url}"><span class="h-date">${t.date}</span>` +
+          `<span class="h-emoji">${t.persona ? t.persona.emoji : "🚃"}</span>` +
+          `<span><span class="h-line">${t.line.name}</span> <span class="h-co">${t.line.company}</span></span></a>`;
+        frag.appendChild(li);
+      }
+      ul.appendChild(frag);
+      shown = Math.min(shown + SERIAL_PAGE, trips.length);
+      const rest = trips.length - shown;
+      more.classList.toggle("hidden", rest <= 0);
+      if (rest > 0) more.textContent = `もっと見る (残り${rest}便)`;
+    };
+
+    more.onclick = addPage;
+    addPage();
   }
 
   // ---- トップの全国マップを"生きている"状態にする ----
