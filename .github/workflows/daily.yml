@@ -1,9 +1,16 @@
-# 夜間バッチ: 毎朝の便を自動生成してコミットする。
-# 静的ホスト (Cloudflare Pages / Netlify) を GitHub 連携しておけば、
-# このコミットの push で自動的に再ビルド・再デプロイされる。
+# 夜間バッチ: 毎朝の便を自動生成してコミットし、そのまま本番へデプロイする。
+#
+# 以前は「push すれば Cloudflare の Workers Builds (GitHub 連携) が拾って
+# ビルドしてくれる」に任せていたが、2026-08-26 の便で webhook が発火せず
+# (チェック実行が1件も作られず) 生成済みなのにサイトだけ古いまま、という
+# 取りこぼしが起きた。便を作ったジョブが最後のデプロイまで見届ける。
 #
 # 事前準備:
-#   リポジトリの Settings → Secrets and variables → Actions に OPENAI_API_KEY を登録。
+#   リポジトリの Settings → Secrets and variables → Actions に
+#     OPENAI_API_KEY         便の生成用
+#     CLOUDFLARE_API_TOKEN   Workers のデプロイ権限を持つトークン
+#     CLOUDFLARE_ACCOUNT_ID  Cloudflare のアカウントID
+#   を登録。
 name: daily-trip
 
 on:
@@ -29,6 +36,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: npm
 
       - name: 便を生成 (JST の当日分)
         env:
@@ -46,3 +54,31 @@ jobs:
             git commit -m "便: $(TZ=Asia/Tokyo date +%F)"
             git push
           fi
+
+      # ここから下は「便が新しく出来たか」に関わらず毎回走らせる。
+      # 過去にデプロイを取りこぼした日があっても、次の実行で追いつける。
+      - name: dist/ を組み立て (OGP画像に @resvg/resvg-wasm が要る)
+        run: |
+          npm ci
+          npm run build
+
+      - name: Cloudflare へデプロイ
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 deploy
+
+      - name: 本番に当日の便が出ているか確認
+        run: |
+          DATE="$(TZ=Asia/Tokyo date +%F)"
+          for i in 1 2 3 4 5; do
+            CODE="$(curl -s -o /dev/null -w '%{http_code}' "https://bunshin-tabi.com/trips/$DATE.json")"
+            if [ "$CODE" = "200" ]; then
+              echo "OK: $DATE の便が配信されている。"
+              exit 0
+            fi
+            echo "まだ $CODE。反映待ち ($i/5)..."
+            sleep 15
+          done
+          echo "NG: $DATE の便が本番で 404 のまま。" >&2
+          exit 1
