@@ -8,6 +8,7 @@
 // cron 例 (毎晩3時に翌日分):  0 3 * * *  cd /path && node scripts/generate-daily.js
 
 import { listLines, getLine } from "../lib/stations.js";
+import { getOrBuildTrack } from "../lib/track.js";
 import { pickPersonaForDate } from "../lib/personas.js";
 import { generateTrip } from "./generate-trip.js";
 import { loadTrip, allTrips } from "../lib/trips-store.js";
@@ -61,30 +62,69 @@ function visitedLines() {
 
 // 路線選定: 旅として成立しやすい規模 (5〜30駅程度) の中から、日付シードで決定的に選ぶ。
 // 未踏の路線を優先する (撹拌だけだと1年で134回も既訪問路線に当たる)。
-function pickLine() {
-  if (explicitLine) return explicitLine;
+// 線形が取れない路線に当たることがあるので、候補は順番付きで返し、順に試す。
+function pickLineCandidates(limit = 6) {
+  if (explicitLine) return [explicitLine];
   const candidates = listLines().filter((l) => l.stationCount >= 5 && l.stationCount <= 30);
   const pool = candidates.length ? candidates : listLines();
   const visited = visitedLines();
   const start = hashDate(date) % pool.length;
-  for (let n = 0; n < pool.length; n++) {
+  const fresh = [];
+  const seen = [];
+  for (let n = 0; n < pool.length && fresh.length < limit; n++) {
     const l = pool[(start + n) % pool.length];
-    if (!visited.has(l.line_cd)) {
-      if (n) console.error(`未踏優先: ${n}本ずらしました (${n}本が訪問済み)`);
-      return l.line_cd;
-    }
+    (visited.has(l.line_cd) ? seen : fresh).push(l.line_cd);
   }
-  console.error(`候補 ${pool.length}本をすべて旅し終えました。2巡目に入ります。`);
-  return pool[start].line_cd;
+  if (!fresh.length) {
+    console.error(`候補 ${pool.length}本をすべて旅し終えました。2巡目に入ります。`);
+    return seen.slice(0, limit);
+  }
+  return fresh;
 }
 
-const lineCd = pickLine();
-const line = getLine(lineCd);
 // 環状線の簡易判定: 始点と終点が近い
-const first = line.stations[0];
-const last = line.stations[line.stations.length - 1];
-const loop =
-  Math.hypot(first.lat - last.lat, first.lon - last.lon) < 0.01 && line.stations.length > 5;
+function detectLoop(stations) {
+  const first = stations[0];
+  const last = stations[stations.length - 1];
+  return Math.hypot(first.lat - last.lat, first.lon - last.lon) < 0.01 && stations.length > 5;
+}
+
+// 線形が駅からこれ以上ずれていたら、地図がまるで別の路線になる。
+// 2026-09-05 の広電３号線は、軌道線を拾えず近くの JR の線路を描いてしまい
+// 駅から最大1.5km ずれていた。そういう便は出さずに次の候補へ回す。
+const MAX_STATION_DIST_M = 300;
+
+// 候補を順に試し、線形がまともに引けた最初の路線を返す。
+// (線形は line_cd 単位でキャッシュされるので、ここで引いた分は本生成でそのまま使われる)
+async function pickTravelableLine() {
+  const candidates = pickLineCandidates();
+  let fallback = null;
+  for (const lineCd of candidates) {
+    const line = getLine(lineCd);
+    if (!line) continue;
+    const loop = detectLoop(line.stations);
+    try {
+      const track = await getOrBuildTrack(line.line, line.stations, { loop });
+      const v = track.validation || {};
+      if (v.ok || (v.monotonic && v.maxStationDist <= MAX_STATION_DIST_M)) {
+        return { lineCd, line, loop };
+      }
+      console.error(
+        `線形が怪しいので見送り: ${line.line.name} (駅最大距離 ${v.maxStationDist}m${v.monotonic ? "" : " / 弧長逆行"})`
+      );
+      fallback = fallback || { lineCd, line, loop };
+    } catch (e) {
+      console.error(`線形を取得できず見送り: ${line.line.name} (${e.message})`);
+    }
+  }
+  if (fallback) {
+    console.error("どの候補も線形が怪しいため、いちばん先の候補で作ります。");
+    return fallback;
+  }
+  throw new Error("線形を取得できる路線が候補にありませんでした");
+}
+
+const { lineCd, line, loop } = await pickTravelableLine();
 
 const persona = pickPersonaForDate(date);
 console.error(`=== 夜間バッチ: ${date} の便 ===`);
