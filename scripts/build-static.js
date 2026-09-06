@@ -25,6 +25,15 @@ const esc = (s) =>
 // 日記本文にはスポットへのリンク (<a>) が含まれる。プレーンテキストが要る所で使う。
 const stripTags = (s) => String(s == null ? "" : s).replace(/<[^>]+>/g, "").trim();
 
+// ekidata の路線名は全角 ("広電３号線")、検索で打たれるのは半角 ("広電3号線")。
+// 表記が違うと description や keywords から拾われないので、別名として併記する。
+const toHalfWidth = (s) =>
+  String(s == null ? "" : s).replace(/[０-９Ａ-Ｚａ-ｚ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+const nameAlias = (name) => {
+  const h = toHalfWidth(name);
+  return h && h !== name ? h : null;
+};
+
 const fmtDate = (s) => {
   const [y, m, d] = s.split("-").map(Number);
   const wd = ["日", "月", "火", "水", "木", "金", "土"][new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
@@ -72,6 +81,25 @@ function metaBlock({ title, desc, url, image, type = "article", jsonLd }) {
   return L.join("\n");
 }
 
+// 便ページのタイトル・説明。HTML と feed.xml で同じものを使う。
+function tripMeta(t) {
+  const trip = t.trip;
+  const p = trip.persona || {};
+  const st = trip.stations || [];
+  const first = st.length ? st[0].name : "";
+  const last = st.length ? st[st.length - 1].name : "";
+  const alias = nameAlias(trip.line.name);
+  return {
+    trip,
+    url: SITE + t.url,
+    title: `${p.emoji ? p.emoji + " " : ""}分身${p.name || ""}の旅日記 — ${trip.line.name}`,
+    desc:
+      `${trip.line.name}${alias ? ` (${alias})` : ""}を分身が旅した記録。` +
+      `${trip.line.company || ""} ${first}→${last}・約${trip.line.km ?? "?"}km・${fmtDate(trip.date)}。` +
+      `沿線の名物や車窓を一人称の日記に。`,
+  };
+}
+
 // ---- 構造化データ (JSON-LD) ----
 
 const PUBLISHER = {
@@ -109,7 +137,7 @@ function tripJsonLd({ trip, title, desc, url, image }) {
     author: { "@type": "Person", name: `分身${p.name || ""}`.trim() },
     publisher: PUBLISHER,
     articleSection: "旅日記",
-    keywords: [trip.line.name, trip.line.company, ...stations.map((s) => `${s}駅`), "鉄道", "旅日記"]
+    keywords: [trip.line.name, nameAlias(trip.line.name), trip.line.company, ...stations.map((s) => `${s}駅`), "鉄道", "旅日記"]
       .filter(Boolean)
       .join(","),
     articleBody: (trip.diary || []).map((e) => stripTags(e.text)).join("\n"),
@@ -159,7 +187,10 @@ function articleBlock({ trip, title, url }, others) {
   const last = st.length ? st[st.length - 1].name : "";
   const L = [
     `<h1>${esc(title)}</h1>`,
-    `<p class="seo-sub">${esc(trip.line.name)} (${esc(trip.line.company || "")}) ${esc(first)} → ${esc(last)}` +
+    // 全角の路線名は半角表記も併記する ("広電３号線 (広電3号線 / 広島電鉄)")
+    `<p class="seo-sub">${esc(trip.line.name)}` +
+      ` (${[nameAlias(trip.line.name), trip.line.company].filter(Boolean).map(esc).join(" / ")})` +
+      ` ${esc(first)} → ${esc(last)}` +
       ` 約${esc(trip.line.km ?? "?")}km ／ ${esc(fmtDate(trip.date))}` +
       `${trip.weather ? " " + esc(trip.weather) : ""}${p.traits ? " ／ " + esc(p.traits) : ""}</p>`,
   ];
@@ -187,6 +218,68 @@ function articleBlock({ trip, title, url }, others) {
       `</ul></nav>`
   );
   return L.join("\n");
+}
+
+// トップの静的本文。連載一覧は index.json から JS で描いていて HTML には
+// 便へのリンクが1本も無かった。クローラの巡回経路が sitemap 頼みになるので、
+// 全便への <a> をここに置く (JS が動く環境では style.css の .js 側で隠れる)。
+function homeArticleBlock(trips) {
+  return [
+    `<h1>分身の旅日記</h1>`,
+    `<p class="seo-sub">分身が日本の実在の鉄道路線を旅し、沿線の名物や車窓の風景を` +
+      `一人称の日記にして毎朝1本お届けします。</p>`,
+    `<nav class="seo-nav"><h2>これまでの便</h2><ul>` +
+      trips
+        .map((t) => {
+          const trip = t.trip;
+          const alias = nameAlias(trip.line.name);
+          return (
+            `<li><a href="${esc(t.url)}">${esc(fmtDate(trip.date))} ` +
+            `${esc(trip.line.name)}${alias ? ` (${esc(alias)})` : ""}` +
+            ` (${esc(trip.line.company || "")}) 約${esc(trip.line.km ?? "?")}km</a></li>`
+          );
+        })
+        .join("") +
+      `</ul></nav>`,
+  ].join("\n");
+}
+
+// ---- Atom フィード ----
+// 毎朝更新の連載なので、購読の受け皿を用意する (<head> の rel=alternate から辿れる)。
+function atomFeed(trips) {
+  const latest = trips.slice(0, 20).map(tripMeta);
+  const at = (date) => `${date}T07:00:00+09:00`;
+  const updated = latest.length ? at(latest[0].trip.date) : new Date().toISOString();
+  const entries = latest.map(({ trip, url, title, desc }) => {
+    const p = trip.persona || {};
+    const body = (trip.diary || []).map((e) => `<p>${esc(stripTags(e.text))}</p>`).join("");
+    return [
+      `  <entry>`,
+      `    <title>${esc(title)}</title>`,
+      `    <link href="${esc(url)}"/>`,
+      `    <id>${esc(url)}</id>`,
+      `    <published>${at(trip.date)}</published>`,
+      `    <updated>${at(trip.date)}</updated>`,
+      `    <author><name>分身${esc(p.name || "")}</name></author>`,
+      `    <summary>${esc(desc)}</summary>`,
+      `    <content type="html">${esc(body)}</content>`,
+      `  </entry>`,
+    ].join("\n");
+  });
+  return [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="ja">`,
+    `  <title>分身の旅日記</title>`,
+    `  <subtitle>分身が日本の実在の鉄道を旅した一人称の日記。毎朝1本。</subtitle>`,
+    `  <link rel="self" href="${SITE}/feed.xml"/>`,
+    `  <link href="${SITE}/"/>`,
+    `  <id>${SITE}/</id>`,
+    `  <updated>${updated}</updated>`,
+    `  <author><name>分身の旅日記</name></author>`,
+    ...entries,
+    `</feed>`,
+    ``,
+  ].join("\n");
 }
 
 // ---- 組み立て ----
@@ -225,15 +318,8 @@ try {
 const template = readFileSync(join(DIST, "index.html"), "utf8");
 
 for (const t of trips) {
-  const trip = t.trip;
-  const p = trip.persona || {};
-  const st = trip.stations || [];
-  const first = st.length ? st[0].name : "";
-  const last = st.length ? st[st.length - 1].name : "";
-  const title = `${p.emoji ? p.emoji + " " : ""}分身${p.name || ""}の旅日記 — ${trip.line.name}`;
-  const desc = `${trip.line.company || ""} ${first}→${last}・約${trip.line.km ?? "?"}km・${trip.date}。分身が実在の鉄道を旅した一人称の日記。`;
+  const { trip, title, desc, url } = tripMeta(t);
   const image = ogOk ? SITE + t.ogPath : null;
-  const url = SITE + t.url;
   const html = injectArticle(
     injectMeta(
       template,
@@ -251,14 +337,17 @@ const homeTitle = "分身の旅日記 — 日本全国の旅";
 const homeDesc = "分身が日本の実在の鉄道を旅した記録。毎朝1本、新しい路線へ。";
 writeFileSync(
   join(DIST, "index.html"),
-  injectMeta(template, metaBlock({
+  injectArticle(
+    injectMeta(template, metaBlock({
     title: homeTitle,
     desc: homeDesc,
     url: SITE + "/",
     image: ogOk ? SITE + "/og/default.png" : null,
     type: "website",
     jsonLd: homeJsonLd({ title: homeTitle, desc: homeDesc, url: SITE + "/", trips }),
-  }))
+    })),
+    homeArticleBlock(trips)
+  )
 );
 
 // ---- sitemap.xml / robots.txt ----
@@ -281,6 +370,7 @@ writeFileSync(
       .join("\n") +
     `\n</urlset>\n`
 );
+writeFileSync(join(DIST, "feed.xml"), atomFeed(trips));
 writeFileSync(
   join(DIST, "robots.txt"),
   `User-agent: *\nAllow: /\n\nSitemap: ${SITE}/sitemap.xml\n`
@@ -288,5 +378,5 @@ writeFileSync(
 
 console.error(`dist/ を組み立てました → ${DIST}`);
 console.error(`  便HTML: ${trips.length}件 / overview: ${overview.stats.trips}便 / OGP: ${ogOk ? "あり" : "なし"}`);
-console.error(`  sitemap: ${urls.length}URL / robots.txt / JSON-LD・canonical・静的本文: あり`);
+console.error(`  sitemap: ${urls.length}URL / robots.txt / feed.xml (${Math.min(trips.length, 20)}件) / JSON-LD・canonical・静的本文: あり`);
 console.error(`  ビルドコマンド: node scripts/build-static.js / 出力: dist / SITE=${SITE}`);
