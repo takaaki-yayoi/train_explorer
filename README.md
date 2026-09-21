@@ -62,6 +62,7 @@ node scripts/fetch-track.js <line_cd> [--loop]        # 線形だけ取得して
 node scripts/generate-trip.js --line <cd> [--date ..] [--persona id] [--loop] [--dry]
 node scripts/generate-daily.js [--date ..] [--line cd]
 node scripts/regenerate-diaries.js [--from ..] [--to ..] [--date ..] [--redo] [--lines]  # 既存の便の日記だけ書き直す
+node scripts/fix-links.js [--check]                   # 日記内の存在しない Wikipedia 記事へのリンクを検索リンクに直す (LLM不要)
 node scripts/build-samples.js                         # 参照3本 → シード
 ```
 
