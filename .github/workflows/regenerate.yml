@@ -1,0 +1,94 @@
+# 過去の便の日記を書き直す (手動実行のみ)。
+#
+# 素材集めやモデルを改善したあと、その成果を過去の便にも反映するためのもの。
+# 路線・線形・分身・天気は据え置きで、日記だけを書き直す (scripts/regenerate-diaries.js)。
+# 書き直し済みの便は飛ばすので、途中で落ちたら同じ入力でもう一度走らせれば続きから進む。
+#
+# Secrets / Variables は daily.yml と同じものを使う。
+name: regenerate-diaries
+
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        description: "開始日 YYYY-MM-DD (空なら最初の便から)"
+        type: string
+        default: ""
+      to:
+        description: "終了日 YYYY-MM-DD (空なら最新の便まで)"
+        type: string
+        default: ""
+      redo:
+        description: "書き直し済みの便もやり直す"
+        type: boolean
+        default: false
+      lines:
+        description: "路線指定の便 (trips/lines/) も対象にする"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # trips/ をコミットして push するため
+
+# 夜間バッチと同時に trips/ を触って push がぶつからないよう、同じ列に並べる
+concurrency:
+  group: trips-write
+  cancel-in-progress: false
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: 日記を書き直す
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
+          FROM: ${{ github.event.inputs.from }}
+          TO: ${{ github.event.inputs.to }}
+        run: |
+          ARGS=""
+          if [ -n "$FROM" ]; then ARGS="$ARGS --from $FROM"; fi
+          if [ -n "$TO" ]; then ARGS="$ARGS --to $TO"; fi
+          node scripts/regenerate-diaries.js $ARGS ${{ github.event.inputs.redo == 'true' && '--redo' || '' }} ${{ github.event.inputs.lines == 'true' && '--lines' || '' }}
+
+      # 一部の便で失敗しても、書き直せた分はコミットして配信まで進める
+      - name: コミット & push
+        if: always()
+        run: |
+          git config user.name "bunshin-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add trips
+          if git diff --cached --quiet; then
+            echo "変更なし。"
+          else
+            git commit -m "便の書き直し: ${FROM:-最初}〜${TO:-最新}"
+            git pull --rebase
+            git push
+          fi
+        env:
+          FROM: ${{ github.event.inputs.from }}
+          TO: ${{ github.event.inputs.to }}
+
+      - name: dist/ を組み立て (OGP画像に @resvg/resvg-wasm が要る)
+        if: always()
+        run: |
+          npm ci
+          npm run build
+
+      - name: Cloudflare へデプロイ
+        if: always()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 deploy

@@ -26,13 +26,20 @@ function tomorrow() {
 }
 
 const date = arg("date") || tomorrow();
-const explicitLine = arg("line") ? Number(arg("line")) : null;
+let explicitLine = arg("line") ? Number(arg("line")) : null;
 
 // 既に生成済みなら何もしない (冪等)。--force で上書き再生成。
 const force = process.argv.includes("--force");
-if (!force && loadTrip(date)) {
+const existing = loadTrip(date);
+if (!force && existing) {
   console.error(`${date} の便は既に存在します。スキップ (上書きするなら --force)。`);
   process.exit(0);
+}
+// 作り直しでは路線を変えない。選定からやり直すと、元の路線が「訪問済み」として外れ、
+// 同じ日付の便が別の路線に化ける (2026-09-21 は JR八戸線 → 釜石線になった)。
+// 路線ごと変えたいときは --line で明示する。
+if (force && existing && !explicitLine && existing.line && existing.line.line_cd) {
+  explicitLine = Number(existing.line.line_cd);
 }
 
 // 日付から候補列のどこを見に行くかを決める。

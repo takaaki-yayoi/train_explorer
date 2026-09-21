@@ -35,6 +35,11 @@ on:
 permissions:
   contents: write # trips/ をコミットして push するため
 
+# 便の書き直し (regenerate.yml) と同時に trips/ を触って push がぶつからないよう、同じ列に並べる
+concurrency:
+  group: trips-write
+  cancel-in-progress: false
+
 jobs:
   generate:
     runs-on: ubuntu-latest

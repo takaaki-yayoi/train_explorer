@@ -61,6 +61,7 @@ node scripts/list-lines.js [絞り込み語|--random]      # 有効な路線一�
 node scripts/fetch-track.js <line_cd> [--loop]        # 線形だけ取得してキャッシュ
 node scripts/generate-trip.js --line <cd> [--date ..] [--persona id] [--loop] [--dry]
 node scripts/generate-daily.js [--date ..] [--line cd]
+node scripts/regenerate-diaries.js [--from ..] [--to ..] [--date ..] [--redo] [--lines]  # 既存の便の日記だけ書き直す
 node scripts/build-samples.js                         # 参照3本 → シード
 ```
 
