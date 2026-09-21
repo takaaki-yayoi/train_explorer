@@ -11,6 +11,9 @@
 #     CLOUDFLARE_API_TOKEN   Workers のデプロイ権限を持つトークン
 #     CLOUDFLARE_ACCOUNT_ID  Cloudflare のアカウントID
 #   を登録。
+#   モデルは同じ画面の Variables で切り替える (未設定なら lib/diary.js の既定値):
+#     OPENAI_MODEL           OpenAI のモデル名
+#     LLM_PROVIDER           "anthropic" にすると ANTHROPIC_API_KEY (Secrets) と ANTHROPIC_MODEL を使う
 name: daily-trip
 
 on:
@@ -46,6 +49,10 @@ jobs:
       - name: 便を生成 (JST の当日分)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
         run: node scripts/generate-daily.js --date "$(TZ=Asia/Tokyo date +%F)" ${{ github.event.inputs.force == 'true' && '--force' || '' }}
 
       - name: コミット & push
