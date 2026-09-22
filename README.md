@@ -29,7 +29,8 @@ lib/           コアライブラリ (依存なし)
   stations.js    駅/路線/事業者の結合・抽出 (e_sort順, lon/lat入替, 除外判定)
   geo.js         ハーバサイン / Douglas-Peucker / 駅の射影 / 弧長→座標
   track.js       Overpass 線形取得 → グラフ+ダイクストラ → 間引き → 検証 → キャッシュ
-  spots.js       Wikipedia から沿線スポット素材を収集
+  spots.js       Wikipedia から沿線スポット素材を収集 (駅記事の周辺・歴史節、近傍記事)
+  osm-pois.js    OpenStreetMap から駅周辺の地物 (川・橋・寺社・史跡・店) を収集
   personas.js    分身 (ペルソナ) 定義とローテーション
   diary.js       Anthropic API で日記生成 (構造化出力)
   trips-store.js trip JSON の保存・索引
@@ -43,7 +44,7 @@ server.js      依存ゼロの静的配信 + trip API
 ## パイプライン (夜間バッチ)
 
 ```
-路線選定 → 線形取得/キャッシュ確認 (Overpass) → スポット収集 (Wikipedia) → LLM生成 → trip JSON保存
+路線選定 → 線形取得/キャッシュ確認 (Overpass) → スポット収集 (Wikipedia + OSM) → LLM生成 → trip JSON保存
 ```
 
 ```bash
